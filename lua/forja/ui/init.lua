@@ -162,7 +162,7 @@ function M.open(lines, title, opts)
   return buf, win
 end
 
-function M.open_lesson(lines, title, code_win, mode)
+function M.open_lesson(lines, title, code_win, mode, exam_active)
   remove_view("lesson", false)
   code_win = code_win or vim.api.nvim_get_current_win()
   local buf = make_buffer(lines, "Forja " .. title)
@@ -188,12 +188,16 @@ function M.open_lesson(lines, title, code_win, mode)
   local actions = {
     r = { "ForjaRun", "Ejecutar tests visibles" },
     t = { "ForjaTest", "Ejecutar evaluación" },
-    a = { "ForjaRecall", "Practicar recuperación activa" },
-    h = { "ForjaHint", "Solicitar pista" },
     o = { "ForjaResult", "Ver último resultado" },
-    p = { "ForjaPractice", "Abrir variación de transferencia" },
   }
-  if mode == "practice" or mode == "review" then
+  if exam_active then
+    actions.e = { "ForjaExam stop", "Terminar Exam Mode" }
+  else
+    actions.a = { "ForjaRecall", "Practicar recuperación activa" }
+    actions.h = { "ForjaHint", "Solicitar pista" }
+    actions.p = { "ForjaPractice", "Abrir variación de transferencia" }
+  end
+  if not exam_active and (mode == "practice" or mode == "review") then
     actions.b = { "ForjaReview stop", "Volver al workspace original" }
   end
   for key, action in pairs(actions) do

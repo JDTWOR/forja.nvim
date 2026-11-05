@@ -50,7 +50,7 @@ return {
     cmd = {
       "Forja", "ForjaClose", "ForjaResult", "ForjaStart", "ForjaTracks", "ForjaLesson", "ForjaNext",
       "ForjaRun", "ForjaTest", "ForjaTrustLocal", "ForjaCancel", "ForjaHint",
-      "ForjaTutor", "ForjaRecall", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaAbandon",
+      "ForjaTutor", "ForjaRecall", "ForjaHistory", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaAbandon",
       "ForjaProgress", "ForjaHealth", "ForjaExport",
     },
     opts = {
@@ -84,22 +84,36 @@ opts = { keymaps = { enabled = true, prefix = "<leader>F" } }
 4. Run `:ForjaRun` for visible tests and compiler output. If the buffer has
    unsaved changes, Forja asks whether to save and run or cancel. Fix your
    implementation and run it again as needed.
-5. Run `:ForjaTest` for the assessment. A failure is saved as evidence but does
-   not unlock the next lesson. A passing assessment unlocks it.
+5. Run `:ForjaTest` for the hidden assessment in a temporary copy. A failure is
+   saved as evidence but does not unlock the next lesson. A passing assessment
+   unlocks it. The local machine owner can inspect course files; this is not a
+   cryptographic boundary.
 6. Run `:ForjaNext` to continue, `:ForjaHint` for the next graduated hint, or
    `:ForjaAbandon` if you want to stop and reveal the reference solution.
 
 Use `:ForjaRecall` (or `a` in the dashboard) to answer each retrieval question
-from memory. Forja stores your response without grading it as proof of
-understanding. After answering, compare your explanation with the lesson.
+from memory. Forja hides the explanation and example while you answer, then
+stores your ungraded responses. From a normal lesson workspace, run
+`:ForjaLesson` to reopen the explanation and compare your answer. `:ForjaHistory`
+lets you read saved responses later.
 
 If you have already completed a lesson, `:ForjaReview` lets you choose it and
-creates a separate clean starter workspace. It will not overwrite your original
-solution. `:ForjaPractice` opens a dedicated transfer exercise with its own
-starter, visible tests, hidden assessment and saved evidence. Approve its local
-Cargo run separately with `:ForjaTrustLocal`. Transfer results do not unlock
-lessons. Run `:ForjaReview stop` to return to your persistent learner workspace;
-the practice copy stays under `forja/reviews/`.
+creates a separate clean starter workspace with study explanations hidden. It
+will not overwrite your original solution. `:ForjaPractice` opens a dedicated
+transfer exercise with its own starter, visible tests, hidden assessment and
+saved evidence. Approve its local Cargo run separately with
+`:ForjaTrustLocal`. Transfer results do not unlock lessons. Run
+`:ForjaReview stop` to return to your persistent learner workspace; practice
+copies stay under `forja/reviews/`. Use `:ForjaHistory` to review saved answers
+or resume one of those workspaces. Resumed workspaces preserve their files but
+cannot establish new independent mastery; start a newly created review or exam
+workspace for that.
+
+`:ForjaExam` starts a fresh workspace and hides the worked explanation, example,
+and guided strategy. Forja disables its hints and tutor until `:ForjaExam stop`,
+which saves the exam workspace and returns to your normal lesson. An active exam
+workspace can be restored after restarting Neovim when its saved path is valid.
+Exam Mode only controls features inside Forja.
 
 ## Commands
 
@@ -113,15 +127,16 @@ the practice copy stays under `forja/reviews/`.
 | `:ForjaLesson [lesson-id]` | Open the current or a prerequisite-eligible lesson. |
 | `:ForjaNext` | Open the next lesson after assessment completion. |
 | `:ForjaRun` | Run visible Cargo tests asynchronously. |
-| `:ForjaTest` | Run public and hidden assessment tests in a temporary copy. |
+| `:ForjaTest` | Run the hidden assessment target in a temporary copy; `:ForjaRun` runs visible tests. |
 | `:ForjaTrustLocal` | Explicitly approve local code execution for this exercise. |
 | `:ForjaCancel` | Request cancellation of the active Forja process. |
 | `:ForjaHint` | Reveal and record the next hint in the six-step ladder. |
 | `:ForjaRecall` | Capture short answers to the lesson's retrieval questions. |
+| `:ForjaHistory` | Review saved recall answers or resume a saved review/transfer workspace. |
 | `:ForjaTutor` | Ask a Socratic question (fixed offline mock unless a provider is configured). |
 | `:ForjaReview [lesson-id\|stop]` | Start clean retrieval practice for a completed lesson, or detach the review workspace. |
 | `:ForjaPractice [lesson-id]` | Open the transfer variation. |
-| `:ForjaExam [stop]` | Toggle plugin-controlled independent mode; hints and tutor are disabled. |
+| `:ForjaExam [stop]` | Start/stop a clean independent attempt; Forja hints and tutor are disabled while active. |
 | `:ForjaAbandon` | Explicitly abandon and display the reference solution without changing learner code. |
 | `:ForjaProgress` | Show lesson evidence, attempts, hints, and tutor assistance. |
 | `:ForjaHealth` | Check Neovim APIs, Cargo, curriculum parsing, and progress storage. |
@@ -154,7 +169,9 @@ By default Forja stores progress at `stdpath("data")/forja/progress.json`.
 Each successful write keeps the previous file at `progress.json.bak`; writes are
 made through a temporary file and rename. To export a portable copy, run
 `:ForjaExport /path/to/forja-progress.json`. Workspaces live in
-`forja/workspaces/`; clean review copies live in `forja/reviews/`.
+`forja/workspaces/`; clean review copies live in `forja/reviews/`. Active review,
+practice, and exam metadata is persisted so Forja can restore a valid workspace
+after restart. Existing workspaces are never overwritten.
 
 You can choose a different data directory in plugin options:
 
@@ -187,21 +204,26 @@ bash tests/run.sh
 ```
 
 The suite uses no Plenary or other Neovim test dependency. It covers graph
-validation, migrations, persistence, assistance and recall accounting, command
-loading, responsive UI cleanup and resize, assessment gating, unsaved-buffer
-safety, separate transfer workspaces, timeout, and cancellation. It also checks
-that all ten clean starters compile without warnings and verifies every
-reference solution against visible and assessment tests.
+validation, migrations, persistence, sticky assistance accounting, clean
+retrieval and exam gating, saved history and session restoration, restricted
+recall/review views, responsive UI cleanup and resize, assessment gating,
+unsaved-buffer safety, separate transfer workspaces, mandatory hidden targets,
+workspace staging limits, process-group cancellation, and a total execution
+deadline. It also checks that all ten clean starters compile without warnings
+and verifies every reference solution against visible and assessment tests.
 
 ## Security limits
 
 Forja asks before running local Rust code. After approval, Cargo can run build
 scripts, procedural macros, and learner tests with your account's permissions.
 `--offline` avoids dependency downloads; it does not sandbox the process. The
-assessment temp copy prevents hidden assertions from appearing in the ordinary
-exercise workspace, but the machine owner can inspect repository files or change
-tests. Exam Mode only disables assistance controlled by Forja; it cannot block
-external apps, search engines, shell commands, or other AI tools.
+assessment copy excludes `.git` and `target`, is limited to 2000 filesystem
+entries and 16 MiB, and runs the explicit hidden test target under one deadline.
+Cancellation and timeout kill the child process group on Linux/macOS. A process
+that deliberately escapes that group is outside this control. The machine owner
+can inspect repository files or change tests. Exam Mode only disables assistance
+controlled by Forja; it cannot block external apps, search engines, shell
+commands, or other AI tools.
 
 ## Documentation
 

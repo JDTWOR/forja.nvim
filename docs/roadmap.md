@@ -8,7 +8,11 @@
   verified reference solutions and progress gates.
 - JSON progress persistence, backups, migrations, hints, local Exam Mode,
   cancellation, health checks, ungraded active-recall capture and dedicated
-  transfer projects for each Rust lesson.
+  transfer projects for each Rust lesson. Clean review/exam sessions preserve
+  assistance evidence, old workspaces are resumable but uncertified, and saved
+  recall answers are available through `:ForjaHistory`.
+- Mandatory hidden Cargo assessment targets, bounded staging, process-group
+  cancellation and a total runner deadline for the Rust execution backend.
 - Headless domain/end-to-end tests and solution verification.
 
 ## Phase 2 — provider-backed tutor

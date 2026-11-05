@@ -19,7 +19,18 @@ end
 
 function M.render(lesson, workspace, mode, exam_active)
   local lines
-  if mode == "practice" then
+  if mode == "recall" then
+    lines = { "# Recuperación activa · " .. lesson.title, "", "Responde de memoria. La explicación y los ejemplos están ocultos durante esta práctica." }
+    for _, question in ipairs(lesson.questions) do table.insert(lines, "- " .. question) end
+  elseif exam_active or mode == "review" or mode == "exam" then
+    lines = { "# Intento independiente · " .. lesson.title, "", "## Objetivo", lesson.objective, "", "## Requisitos" }
+    if mode == "practice" then
+      table.insert(lines, lesson.variation)
+    else
+      for _, requirement in ipairs(lesson.requirements) do table.insert(lines, "- " .. requirement) end
+    end
+    table.insert(lines, "La explicación, los ejemplos y la estrategia guiada están ocultos durante este intento.")
+  elseif mode == "practice" then
     lines = {
       "# Variación de transferencia · " .. lesson.title,
       "",
@@ -57,15 +68,26 @@ function M.render(lesson, workspace, mode, exam_active)
       vim.list_extend(lines, { "", "## Práctica de recuperación", "Este workspace empieza limpio. Implementa la lección sin consultar tu solución guardada." })
     end
   end
-  vim.list_extend(lines, {
-    "",
-    "Código abierto en `src/lib.rs` · `r` tests visibles · `t` evaluación · `o` resultados.",
-    "`h` pista · `a` recuperación activa · `p` variación de transferencia.",
-    "",
-    "Cierra con `q`, `<Esc>` o `:ForjaClose`. El código queda abierto.",
-  })
-  local action_line = "Acciones: q cerrar · r tests · t evaluar · a recordar · h pista · o resultados · p variación · :ForjaClose"
-  if mode == "practice" or mode == "review" then
+  if exam_active then
+    vim.list_extend(lines, {
+      "",
+      "Workspace limpio · `r` tests visibles · `t` evaluación · `o` resultados.",
+      "Las pistas, el tutor, la recuperación guiada y la transferencia están deshabilitados.",
+      "Termina con `e` o `:ForjaExam stop`; el workspace se conserva.",
+    })
+  else
+    vim.list_extend(lines, {
+      "",
+      "Código abierto en `src/lib.rs` · `r` tests visibles · `t` evaluación · `o` resultados.",
+      "`h` pista · `a` recuperación activa · `p` variación de transferencia.",
+      "",
+      "Cierra con `q`, `<Esc>` o `:ForjaClose`. El código queda abierto.",
+    })
+  end
+  local action_line = exam_active
+    and "Exam Mode: e terminar · r tests · t evaluar · o resultados · :ForjaExam stop"
+    or "Acciones: q cerrar · r tests · t evaluar · a recordar · h pista · o resultados · p variación · :ForjaClose"
+  if not exam_active and (mode == "practice" or mode == "review") then
     action_line = action_line .. " · b volver al ejercicio base"
     vim.list_extend(lines, { "", "`b` o `:ForjaReview stop` guarda esta copia y vuelve al workspace original." })
   end
@@ -75,7 +97,7 @@ function M.render(lesson, workspace, mode, exam_active)
     table.insert(lines, 1, "⚠ EXAM MODE ACTIVO · tutor y pistas deshabilitados · :ForjaExam stop para terminar")
     table.insert(lines, 2, "")
   end
-  ui.open_lesson(lines, mode == "practice" and "Variación · " .. lesson.title or lesson.title, nil, mode)
+  ui.open_lesson(lines, mode == "practice" and "Variación · " .. lesson.title or lesson.title, nil, mode, exam_active)
 end
 
 return M

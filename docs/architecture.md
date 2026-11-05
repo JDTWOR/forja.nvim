@@ -34,12 +34,15 @@ transfer/           # optional independent variation project and assessment
 
 Visible Rust tests live in `starter/tests/public.rs`. The assessment runner makes
 a temporary copy of source files (excluding `.git` and Cargo's `target/` cache),
-adds `assessment.rs` as an integration test, runs `cargo test --offline`, and
-removes the temporary copy. Excluding `target/` ensures Cargo recompiles the
-current learner source instead of reusing cached binaries from an earlier
-attempt. It never copies the reference solution into a learner workspace. The
-local machine owner can still inspect course files and modify tests; this is not
-a cryptographic assessment boundary.
+adds `assessment.rs` as an explicitly declared generated `forja_assessment_*`
+target, runs only that hidden target, and removes the temporary copy. Explicit registration
+ensures Cargo still runs the assessment when the learner manifest sets
+`autotests = false`. Excluding `target/` ensures Cargo recompiles the current
+learner source instead of reusing cached binaries from an earlier attempt. Copy
+staging is limited to 2000 filesystem entries and 16 MiB. It never copies the
+reference solution into a learner workspace. The local machine owner can still
+inspect course files and modify tests; this is not a cryptographic assessment
+boundary.
 
 ## Storage
 
@@ -48,7 +51,12 @@ configured. Writes use a temporary file followed by rename; the prior version is
 kept as `progress.json.bak`. Malformed JSON is preserved and reported instead of
 being replaced. `storage/migrations.lua` owns schema upgrades. Exercise workspaces
 are under `workspaces/<track>/<lesson>/` and are not overwritten if they already
-exist. Review and focused practice attempts use distinct timestamped directories.
+exist. Review, exam, and focused practice attempts use distinct timestamped
+directories. Active session metadata is saved so a validated workspace under
+`reviews/<track>/<lesson>/` can be restored after restart. Historical workspaces
+can be resumed without overwriting them, but resumption is marked uncertified
+and cannot produce fresh independent evidence. Saved recall answers can also be
+browsed from the history command.
 
 The single-user JSON adapter is the initial repository implementation. A future
 SQLite adapter can implement the same progress repository operations, with a
@@ -60,13 +68,17 @@ not change prerequisite completion.
 ## Process and execution boundary
 
 The runner starts a fixed `/bin/sh` argument array whose constant script sets a
-private `077` umask and invokes `cargo test --offline --no-run`. It restores the
-owner execute bit on generated test binaries, then launches `cargo test
---offline`. This handles environments where Neovim inherited a restrictive
-umask; no curriculum or learner text is interpolated into the script. Both
-stages use `vim.system`, an explicit working directory and timeout, and can be
-cancelled with `:ForjaCancel`. Assessment writes are restricted to a generated
-temporary copy; learner workspaces are copied without following symlinks.
+private `077` umask and invokes Cargo with a fixed target. It restores the owner
+execute bit on generated test binaries, then launches the test stage. This
+handles environments where Neovim inherited a restrictive umask; no curriculum
+or learner text is interpolated into the script. Both stages use `vim.system`,
+an explicit working directory, and one shared deadline. On Linux/macOS the
+detached process group is killed for cancellation or timeout. Assessment writes
+are restricted to a generated temporary copy; learner workspaces are copied
+without following symlinks. Staging is synchronous but bounded by the file and
+byte caps above. These controls reduce hangs and runaway copies; they are not a
+sandbox, and a child that deliberately escapes its process group is outside the
+termination guarantee.
 Cargo can run `build.rs`, procedural macros, compiler plugins, and learner test
 code with the current user's permissions. For that reason, local execution is
 blocked until the user confirms `:ForjaTrustLocal` for the exercise. The approval

@@ -8,6 +8,7 @@ local ui = require("forja.ui")
 local M = {}
 local registered = false
 local review_session
+local session_loaded = false
 local modified_workspace_buffers
 
 local concept_labels = {
@@ -34,11 +35,49 @@ local mastery_labels = {
 
 local function load_state()
   local state, err = progress.load()
-  if not state then ui.notify(err, vim.log.levels.ERROR) end
+  if not state then ui.notify(err, vim.log.levels.ERROR); return nil end
+  if not session_loaded then
+    session_loaded = true
+    local saved = state.practice_session
+    if saved then
+      local fs = require("forja.util.fs")
+      local root = vim.uv.fs_realpath(fs.join(config.get().data_dir, "reviews"))
+      local path = type(saved.path) == "string" and vim.uv.fs_realpath(saved.path) or nil
+      local stat = type(saved.path) == "string" and vim.uv.fs_lstat(saved.path) or nil
+      local track = curriculum.get(saved.track_id)
+      local lesson = track and curriculum.lesson(track, saved.lesson_id)
+      local source = path and workspace.source_file(path)
+      local source_stat = source and vim.uv.fs_lstat(source)
+      local source_real = source and vim.uv.fs_realpath(source)
+      local transfer_path = path and vim.fn.fnamemodify(path, ":t"):match("^transfer%-") ~= nil
+      local mode_valid = saved.mode == "practice" and transfer_path and lesson and lesson.exercise._variation_dir
+        or (saved.mode == "review" or saved.mode == "exam") and not transfer_path
+      local exam_consistent = (state.exam_active == true) == (saved.exam == true)
+      local expected = root and track and lesson and fs.join(root, track.id, lesson.id)
+      if expected and path and path:sub(1, #expected + 1) == expected .. "/" and stat and stat.type == "directory"
+        and source_stat and source_stat.type == "file" and source_real and source_real:sub(1, #path + 1) == path .. "/" and track and lesson
+        and mode_valid and exam_consistent then
+        review_session = { track = track, lesson = lesson, path = path, mode = saved.mode, exam = saved.exam == true }
+      else
+        state.practice_session = nil
+        state.exam_active = false
+        state.exam_started_at = nil
+        progress.save(state)
+        ui.notify("la sesión guardada no se pudo restaurar; la evaluación se interrumpió y no se ejecutará el código base", vim.log.levels.WARN)
+      end
+    elseif state.exam_active then
+      state.exam_active = false
+      state.exam_started_at = nil
+      progress.save(state)
+      ui.notify("la evaluación anterior se interrumpió sin un workspace recuperable", vim.log.levels.WARN)
+    end
+  end
   return state
 end
 
 local function save_state(state)
+  state.practice_session = review_session and { track_id = review_session.track.id, lesson_id = review_session.lesson.id,
+    path = review_session.path, mode = review_session.mode, exam = review_session.exam == true } or nil
   local ok, err = progress.save(state)
   if not ok then ui.notify("no se pudo guardar el progreso: " .. tostring(err), vim.log.levels.ERROR) end
   return ok
@@ -224,14 +263,14 @@ function M.tracks()
   local buf = ui.open(lines, "Rutas de Forja")
   for index, track in ipairs(tracks) do
     local key = tostring(index)
-    vim.keymap.set("n", key, function() review_session = nil; M.start(track.id) end, { buffer = buf, silent = true })
+    vim.keymap.set("n", key, function() M.start(track.id) end, { buffer = buf, silent = true })
   end
 end
 
 function M.start(track_id)
-  review_session = nil
   local state = load_state()
   if not state then return end
+  if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   local track = get_track(state, track_id)
   if not track then return end
   local lesson = progress.first_incomplete(track, state)
@@ -243,7 +282,7 @@ function M.start(track_id)
     M.dashboard()
     return
   end
-  open_lesson(state, track, lesson)
+  if open_lesson(state, track, lesson) then review_session = nil; save_state(state) end
 end
 
 function M.lesson(lesson_id)
@@ -252,20 +291,20 @@ function M.lesson(lesson_id)
   if review_session and (not lesson_id or lesson_id == review_session.lesson.id) then
     return open_lesson(state, review_session.track, review_session.lesson, review_session.mode, review_session.path)
   end
-  review_session = nil
+  if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   local track = get_track(state)
   if not track then return end
   local lesson = lesson_id and curriculum.lesson(track, lesson_id) or nil
   if lesson_id and not lesson then ui.notify("lección desconocida: " .. lesson_id, vim.log.levels.ERROR); return end
-  if not lesson then lesson = progress.first_incomplete(track, state) end
+  if not lesson then lesson = state.current_lesson and curriculum.lesson(track, state.current_lesson) or progress.first_incomplete(track, state) end
   if not lesson then ui.notify("ya demostraste todas las lecciones de esta ruta", vim.log.levels.INFO); return end
-  open_lesson(state, track, lesson)
+  if open_lesson(state, track, lesson) then review_session = nil; save_state(state) end
 end
 
 function M.next()
-  review_session = nil
   local state = load_state()
   if not state then return end
+  if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   local track = get_track(state)
   if not track then return end
   local current = state.current_lesson and curriculum.lesson(track, state.current_lesson) or nil
@@ -281,7 +320,7 @@ function M.next()
     ui.notify("todas las lecciones están demostradas; usa :ForjaReview para practicar de memoria")
     return
   end
-  open_lesson(state, track, lesson)
+  if open_lesson(state, track, lesson) then review_session = nil; save_state(state) end
 end
 
 function M.progress()
@@ -302,9 +341,10 @@ function M.progress()
       transfer = string.format(" · transferencia %d intentos (%d aprobados, %d pistas, %d tutor)",
         #(entry.variation.attempts or {}), passed, entry.variation.hints or 0, entry.variation.ai_assistance or 0)
     end
+    local latest = entry.latest_assessment and (" · última evaluación " .. (mastery_labels[entry.latest_assessment.level] or entry.latest_assessment.level)) or ""
     table.insert(lines, string.format("%s %s — %s · intentos %d · pistas %d · tutor %d · recuperaciones %d%s", marker, lesson.title,
       mastery_labels[level] or level, #(entry.attempts or {}), entry.hints or 0, entry.ai_assistance or 0,
-      #(entry.recall_history or {}), transfer))
+      #(entry.recall_history or {}), transfer .. latest))
   end
   table.insert(lines, "")
   table.insert(lines, "La corrección y la asistencia se registran por separado; completar no demuestra por sí solo el dominio.")
@@ -312,6 +352,9 @@ function M.progress()
 end
 
 function M.review(lesson_id)
+  local exam_state = load_state()
+  if not exam_state then return end
+  if exam_state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   if lesson_id == "stop" then
     local session = review_session
     if not session then ui.notify("no hay una sesión de práctica enfocada", vim.log.levels.WARN); return end
@@ -362,6 +405,8 @@ function M.review(lesson_id)
     if not path then ui.notify(err, vim.log.levels.ERROR); return end
     if open_lesson(state, track, lesson, "review", path) then
       review_session = { track = track, lesson = lesson, path = path, mode = "review" }
+      progress.begin_clean_attempt(state, track.id, lesson.id, false, path)
+      save_state(state)
     end
   end
   if #candidates == 1 then begin(candidates[1]); return end
@@ -463,6 +508,7 @@ local function execute_test_run(state, track, lesson, path, is_review, assessmen
       execution_seconds = os.time() - started,
       review = is_review,
       variation = is_variation,
+      workspace = vim.uv.fs_realpath(path) or path,
     })
     assistance.pending_hints = pending_hints_after_start
     assistance.pending_ai_assistance = pending_ai_after_start
@@ -578,8 +624,14 @@ end
 function M.recall()
   local state = load_state()
   if not state then return end
+  if state.exam_active then
+    ui.notify("la recuperación guiada está deshabilitada durante Exam Mode", vim.log.levels.WARN)
+    return
+  end
   local track, lesson = active_context(state)
   if not track or not lesson then return end
+  ui.close("float")
+  require("forja.ui.lesson").render(lesson, nil, "recall", state.exam_active)
   local answers = {}
   local function ask(index)
     local question = lesson.questions[index]
@@ -593,7 +645,9 @@ function M.recall()
         vim.list_extend(lines, { "", "## Pregunta " .. i, lesson.questions[i], "", response == "" and "(sin respuesta)" or response })
       end
       table.insert(lines, "")
-      table.insert(lines, "Revisa ahora la explicación y corrige tus ideas con tus propias palabras.")
+      table.insert(lines, review_session
+        and "Para volver a tu lección original, usa :ForjaReview stop; luego abre :ForjaLesson para comparar con la explicación."
+        or "Usa :ForjaLesson para reabrir la explicación y comparar tus ideas.")
       ui.lines("Recuperación · " .. lesson.title, lines)
       return
     end
@@ -609,6 +663,7 @@ end
 function M.practice(lesson_id)
   local state = load_state()
   if not state then return end
+  if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   local track, lesson, path
   if lesson_id then
     track = get_track(state)
@@ -631,7 +686,63 @@ function M.practice(lesson_id)
   if not path then ui.notify(err, vim.log.levels.ERROR); return end
   if open_lesson(state, track, lesson, "practice", path) then
     review_session = { track = track, lesson = lesson, path = path, mode = "practice" }
+    progress.begin_clean_attempt(state, track.id, lesson.id, true, path)
+    save_state(state)
   end
+end
+
+function M.history()
+  local state = load_state()
+  if not state then return end
+  if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
+  local track = get_track(state)
+  if not track then return end
+  local fs = require("forja.util.fs")
+  local entries = {}
+  local root = fs.join(config.get().data_dir, "reviews", track.id)
+  for _, lesson in ipairs(ordered(track)) do
+    local record = progress.lesson_status(state, track.id, lesson.id)
+    for _, recall in ipairs(record.recall_history or {}) do
+      table.insert(entries, { label = "Recuperación · " .. lesson.title .. " · " .. os.date("%Y-%m-%d %H:%M", recall.at), lesson = lesson, recall = recall })
+    end
+    for _, path in ipairs(vim.fn.glob(fs.join(root, lesson.id, "*"), false, true)) do
+      local stat = vim.uv.fs_lstat(path)
+      local real = vim.uv.fs_realpath(path)
+      local real_root = vim.uv.fs_realpath(root)
+      if stat and stat.type == "directory" and real and real_root and real:sub(1, #real_root + 1) == real_root .. "/" then
+        local transfer = vim.fn.fnamemodify(path, ":t"):match("^transfer%-") ~= nil
+        local source = workspace.source_file(path)
+        local source_real = source and vim.uv.fs_realpath(source)
+        local source_stat = source and vim.uv.fs_lstat(source)
+        if source_real and source_real:sub(1, #real + 1) == real .. "/" and source_stat and source_stat.type == "file" then
+          table.insert(entries, { label = (transfer and "Transferencia" or "Repaso/evaluación") .. " · " .. lesson.title .. " · " .. vim.fn.fnamemodify(path, ":t"),
+            lesson = lesson, path = path, mode = transfer and "practice" or "review" })
+        end
+      end
+    end
+  end
+  if #entries == 0 then ui.notify("todavía no hay recuperaciones ni workspaces de práctica guardados"); return end
+  vim.ui.select(entries, { prompt = "Historial: revisar respuestas o reanudar un workspace", format_item = function(item) return item.label end }, function(item)
+    if not item then return end
+    if item.recall then
+      local lines = { "# " .. item.label, "", "Respuestas guardadas; no son una calificación automática." }
+      for index, answer in ipairs(item.recall.answers or {}) do
+        vim.list_extend(lines, { "", "## " .. (item.lesson.questions[index] or ("Pregunta " .. index)), answer })
+      end
+      table.insert(lines, "")
+      table.insert(lines, review_session
+        and "Para comparar con la explicación, termina la sesión con :ForjaReview stop y abre :ForjaLesson."
+        or "Para comparar con la explicación, abre :ForjaLesson.")
+      ui.lines("Historial de recuperación", lines)
+    elseif open_lesson(state, track, item.lesson, item.mode, item.path) then
+      review_session = { track = track, lesson = item.lesson, path = item.path, mode = item.mode }
+      local record = item.mode == "practice" and progress.variation_status(state, track.id, item.lesson.id) or progress.lesson_status(state, track.id, item.lesson.id)
+      record.session = record.session or { id = 0, hints = 0, ai_assistance = 0, solution_disclosed = false }
+      record.session.resumed_uncertified = true
+      save_state(state)
+      ui.notify("workspace reanudado; se conserva la evidencia de asistencia previa")
+    end
+  end)
 end
 
 function M.exam(argument)
@@ -649,12 +760,22 @@ function M.exam(argument)
     state.exam_started_at = nil
     save_state(state)
     ui.notify("Exam Mode terminó. Desactiva la asistencia de Forja, pero no controla herramientas externas.")
-    refresh()
+    if review_session and review_session.exam then
+      M.review("stop")
+    else
+      refresh()
+    end
     return
   end
   local track, lesson = active_context(state)
   if not track or not lesson then ui.notify("abre una lección antes de iniciar Exam Mode", vim.log.levels.WARN); return end
-  progress.reset_pending_assistance(state, track.id, lesson.id, review_session ~= nil and review_session.mode == "practice")
+  local variation = review_session ~= nil and review_session.mode == "practice"
+  local path, err
+  if variation then path, err = workspace.new_practice(track, lesson) else path, err = workspace.new_review(track, lesson) end
+  if not path then ui.notify(err, vim.log.levels.ERROR); return end
+  if not open_lesson(state, track, lesson, variation and "practice" or "exam", path) then return end
+  review_session = { track = track, lesson = lesson, path = path, mode = variation and "practice" or "exam", exam = true }
+  progress.begin_clean_attempt(state, track.id, lesson.id, variation, path)
   state.exam_active = true
   state.exam_started_at = os.time()
   save_state(state)
@@ -673,6 +794,7 @@ function M.abandon()
   if not track or not lesson then return end
   local is_variation = review_session ~= nil and review_session.mode == "practice"
   local record = is_variation and progress.variation_status(state, track.id, lesson.id) or record_for(state, track, lesson)
+  progress.record_solution_disclosure(state, track.id, lesson.id, is_variation)
   record.abandoned_at = os.time()
   save_state(state)
   local path = is_variation
@@ -712,6 +834,11 @@ function M.tutor()
   local is_variation = review_session ~= nil and review_session.mode == "practice"
   vim.ui.input({ prompt = "¿En qué parte te atascaste? " }, function(question)
     if not question or question == "" then return end
+    local current_state = load_state()
+    if not current_state or current_state.exam_active then
+      ui.notify("el tutor está deshabilitado durante Exam Mode", vim.log.levels.WARN)
+      return
+    end
     local provider = config.get().ai.provider
     local request = {
       system = require("forja.ai.prompts").system,
@@ -805,6 +932,7 @@ function M.setup()
       if runner.cancel() then ui.notify("se solicitó cancelar el proceso") else ui.notify("no hay un proceso de Forja en ejecución", vim.log.levels.WARN) end
     end)
     register("ForjaHint", { desc = "Solicitar la siguiente pista gradual" }, M.hint)
+    register("ForjaHistory", { desc = "Revisar respuestas y reanudar práctica guardada" }, M.history)
     register("ForjaRecall", { desc = "Responder las preguntas de recuperación" }, M.recall)
     register("ForjaTutor", { desc = "Consultar al tutor socrático" }, M.tutor)
     register("ForjaReview", { nargs = "?", desc = "Practicar de memoria una lección demostrada" }, function(args) M.review(args.args ~= "" and args.args or nil) end)

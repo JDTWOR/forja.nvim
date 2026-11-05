@@ -29,6 +29,15 @@ confirmed the navigation, execution, and learning-cycle gaps listed below.
 | U13 | P2 | `:ForjaPractice` repeated the whole base project. | Every Rust lesson now has a distinct transfer crate with its own starter, visible tests, hidden assessment, reference solution, approval, and progress history. Transfer success does not unlock the base lesson. | Transfer integration test passes a dedicated assessment and checks the base attempt/completion records stay unchanged; all ten reference solutions are tested. |
 | U14 | P1 | Prior checks covered registration and cleanup, not reading/editing behavior. | Regression coverage now exercises focus, split/float choice, wrapping, resize, close/reopen, dirty navigation, stale-buffer protection, asynchronous result focus, Exam Mode, recall, and transfer evidence. | `bash tests/run.sh` passes. |
 | U15 | P2 | Starter `todo!()` implementations left every parameter unused, producing Rust warnings before the learner changed the code. | TODO messages now reference their inputs for diagnostic context. This removes starter-only warnings while normal compiler warnings remain visible after implementation. | `tests/verify_solutions.py` runs `cargo check --offline` on all ten starters and fails if it finds any warning. |
+| U16 | P1 | A visible test or retry cleared hint/tutor counters, so later code in the same workspace could be mislabeled independent. | Assistance exposure is sticky for a workspace session. Only a newly created clean review/exam workspace starts fresh independent evidence; resuming old workspaces is explicitly uncertified. | Dedicated base/transfer tests cover hint → visible test → exam counters, AI exposure, fresh retrieval, resume, and JSON persistence. |
+| U17 | P1 | Showing the reference solution did not taint the active attempt. | `:ForjaAbandon` records solution disclosure as assistance for the active workspace, including transfer practice. | Progress regression verifies disclosure blocks independence until a newly created clean attempt. |
+| U18 | P1 | Exam Mode reused assisted code and still showed explanations and worked examples. | Exam Mode opens a fresh starter copy, hides explanations/examples/guided strategy, disables Forja hints, tutor, and guided recall, and restores the same valid workspace after restart. | UX regression checks restricted views, new workspace identity, restart restoration, and invalid saved-path handling. |
+| U19 | P1 | A failed lesson navigation detached the editor from its active practice workspace. | Practice context changes only after the destination opens successfully; `:ForjaLesson` without an argument reopens the current session/lesson. Exam sessions block unrelated navigation until stopped. | UX regression exercises an unknown lesson request during transfer practice and verifies commands stay attached to that copy. |
+| U20 | P2 | Recall answers and earlier practice copies were stored but unavailable to review after restart. | `:ForjaHistory` displays saved recall answers and safely lists prior review/transfer workspaces for resume without overwriting files. | UX regression reviews a saved response, resumes a transfer workspace, and verifies resumed evidence is uncertified. |
+| U21 | P1 | Cargo could return success without running the hidden assessment when `autotests = false`. | Assessment staging appends an explicit hidden test target and invokes it by name; visible tests remain a separate `:ForjaRun` action. | Runner regression uses `autotests = false` and confirms hidden assertions run and fail on the incomplete solution. |
+| U22 | P1 | Timeout covered each Cargo stage separately, cancellation could leave child tests alive, and large workspace staging could freeze Neovim. | One deadline spans compile and test; cancellation/timeouts kill the detached process group on Linux/macOS; synchronous staging rejects workspaces over 2000 entries or 16 MiB. | Runner regressions check child termination, one total deadline, and rejection beyond staging limits. Staging remains synchronous within those bounds. |
+| U23 | P2 | Invalid base starter manifests were accepted until the learner attempted execution. | Curriculum loading validates base and transfer Cargo package names and requires a starter source file. | Regression checks reject package mismatches and missing source files before a track is offered. |
+| U24 | P1 | Tutor input could be submitted before Exam Mode and still invoke a provider after the exam began. | The async input callback checks current Exam Mode immediately before contacting a provider. | UX regression holds the input callback, starts an exam, then verifies the configured provider is never called. |
 
 ## Interaction contract now implemented
 
@@ -41,19 +50,23 @@ confirmed the navigation, execution, and learning-cycle gaps listed below.
   does not steal focus; `:ForjaResult` opens the latest diagnostic on demand.
 - Transfer practice uses a separate exercise workspace and records separate
   evidence. It cannot unlock the curriculum lesson.
-- Exam Mode blocks Forja hints, tutor calls, and solution disclosure. It does
-  not claim to control applications or tools outside the plugin.
+- Exam Mode starts from a clean starter, hides study materials, and blocks Forja
+  hints, tutor calls, guided recall, navigation, and solution disclosure. It
+  does not claim to control applications or tools outside the plugin.
+- `:ForjaHistory` reopens saved recall answers and practice copies; reopening an
+  old copy never counts as fresh independent evidence.
 
 ## Verification and remaining check
 
 `bash tests/run.sh` passed on Neovim 0.12.6 with Cargo available. It runs the
-headless Neovim workflow suite, timeout/cancellation checks, and authentic
-offline Cargo tests for the five lesson solutions plus five transfer solutions.
-The UI suite exercises 80x24 and 120x40 layouts, transitions between float and
-split on resize, and warning-free compilation of all ten starters.
+headless Neovim workflow, progress-session, UX, and runner regression suites,
+then authentic offline Cargo checks for the five lesson solutions plus five
+transfer solutions. The UI suite exercises 80x24 and 120x40 layouts, transitions
+between float and split on resize, and warning-free compilation of all ten
+starters.
 
 The implementation has not been visually inspected inside the user's actual
-LazyVim colorscheme or terminal. The remaining release check is a keyboard-only
-walkthrough in that environment, especially to confirm local `winbar` rendering
-and that the configured terminal font leaves enough code width beside the lesson
-pane. No functional test currently indicates a blocker.
+LazyVim colorscheme or terminal. A keyboard-only walkthrough remains useful to
+confirm local `winbar` rendering and that the configured terminal font leaves
+enough code width beside the lesson pane. Headless tests cover supported sizes;
+they cannot verify terminal font rendering.
