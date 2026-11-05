@@ -1,0 +1,54 @@
+# Roadmap
+
+## Phase 1 — complete in this repository
+
+- Native dashboard and commands; Lazy.nvim setup.
+- Validated JSON curriculum graph and five Spanish Rust lessons.
+- Persistent learner workspaces, visible tests, isolated local assessment copy,
+  verified reference solutions and progress gates.
+- JSON progress persistence, backups, migrations, hints, local Exam Mode,
+  cancellation and health checks.
+- Headless domain/end-to-end tests and solution verification.
+
+## Phase 2 — provider-backed tutor
+
+- Add one first-party HTTP provider and a mock provider test suite.
+- Structured schemas for explanations, questions, hints and reviews.
+- Request timeout/cancellation, context limits, usage accounting and safe error
+  reporting. Keep tools disabled and avoid learner file uploads by default.
+- Add selectable Professor, Socratic, Coach, Debugging, Code Review, Interviewer
+  and Reflection behaviors. Exam Mode remains offline and refuses AI fallback.
+
+## Phase 3 — adaptive learning
+
+- Select and validate a maintained FSRS implementation/version with official
+  vectors before scheduling concept recall cards.
+- Keep short recall cards distinct from coding reimplementation tasks.
+- Store review events, diagnose repeated failures, identify weak concepts, and
+  generate validated practice variations.
+- Track first attempt, hints, AI use, delayed recall and transfer evidence.
+
+## Phase 4 — independent assessments
+
+- Timed sessions, score reports, attempt history and a broader practical
+  interview simulator.
+- Projects with milestones and deterministic test/evaluation gates.
+- Assess code quality and explanations separately; label subjective AI review as
+  subjective.
+
+## Phase 5 — broader curricula
+
+- Language-specific runner packages for Java, Python, PHP, Go, JavaScript and
+  TypeScript.
+- Shared concept DAGs and framework-specific tracks for backend, databases,
+  frontend, architecture, testing, security, performance and deployment.
+- Diagnostic placement that requires deterministic prerequisite evidence.
+
+## Next concrete tasks
+
+1. Add a maintained AI HTTP adapter behind the current interface and test malformed
+   JSON, missing credentials, timeouts and cancellation.
+2. Choose a vetted FSRS library and write an adapter test suite before shipping
+   scheduled reviews.
+3. Add independent assessments for module projects and concept transfer.
+4. Add multi-language runners without changing the curriculum/progress contract.
