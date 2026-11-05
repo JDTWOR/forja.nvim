@@ -47,6 +47,9 @@ local function decode(path)
     end
     lesson.exercise._manifest = manifest
     lesson.exercise._dir = fs.join(track_dir, exercise.project_dir)
+    local starter_ok, starter_err = require("forja.util.cargo").validate_starter(
+      fs.join(lesson.exercise._dir, exercise.starter_dir), manifest.package)
+    if not starter_ok then return nil, lesson.id .. ": " .. starter_err end
     if exercise.variation_dir then
       local variation_root = fs.join(lesson.exercise._dir, exercise.variation_dir)
       local variation_text = fs.read(fs.join(variation_root, "exercise.json"))
@@ -71,6 +74,9 @@ local function decode(path)
       end
       lesson.exercise._variation_dir = variation_root
       lesson.exercise._variation_manifest = variation_manifest
+      local transfer_ok, transfer_err = require("forja.util.cargo").validate_starter(
+        fs.join(variation_root, "starter"), variation_manifest.package)
+      if not transfer_ok then return nil, lesson.id .. " transfer: " .. transfer_err end
     end
   end
   result._ordered_lessons = sorted

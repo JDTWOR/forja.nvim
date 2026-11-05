@@ -81,10 +81,13 @@ solution filenames, and a timeout between 1 and 120 seconds.
   recorded separately and does not unlock the base curriculum.
 - A variation must change what the learner reasons about, not just names.
 - Keep visible tests in `starter/tests/public.rs` so learners can inspect and run
-  them. Put assessment tests in `assessment.rs`; the runner stages that file only
-  in a temporary project copy.
+  them with `:ForjaRun`. Put assessment tests in `assessment.rs`; the runner
+  stages that file only in a temporary project copy and invokes its explicit
+  target with `:ForjaTest`, even if the learner Cargo manifest sets
+  `autotests = false`.
 - Keep the reference solution in `solution.rs`. It is never copied into the
-  ordinary workspace and is shown only after `:ForjaAbandon`.
+  ordinary workspace and is shown only after `:ForjaAbandon`; disclosure counts
+  as assistance for that active workspace attempt.
 - Use a dependency-free Cargo package where practical. Tests run with
   `cargo test --offline`.
 - Never put shell commands, Lua callbacks, or arbitrary runner arguments in a
@@ -97,9 +100,13 @@ Verify content before accepting it:
 bash tests/run.sh
 ```
 
-`tests/verify_solutions.py` copies each starter to a temporary directory, swaps
-in its reference solution, stages assessment tests, and runs Cargo. This verifies
-the solution but does not test assessment fairness; review tests and rubrics too.
+The curriculum loader verifies that each starter contains a Cargo manifest and
+Rust source file, and checks that the Cargo package name matches the exercise
+manifest. `tests/verify_solutions.py` copies each starter to a temporary
+directory, swaps in its reference solution, stages assessment tests, and runs
+Cargo. This verifies the solution but does not test assessment fairness; review
+tests and rubrics too. The runtime assessment copy is bounded to 2000 filesystem
+entries and 16 MiB.
 
 ## Adding a language
 

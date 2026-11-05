@@ -37,9 +37,10 @@ function M.safe_relative(path)
   return true
 end
 
-function M.copy_tree(source, destination, exclude, relative)
+function M.copy_tree(source, destination, exclude, relative, budget)
   exclude = exclude or {}
   relative = relative or ""
+  budget = budget or { entries = 0, bytes = 0, max_entries = 2000, max_bytes = 16 * 1024 * 1024 }
   local source_stat = uv.fs_lstat(source)
   if not source_stat or source_stat.type ~= "directory" then
     return nil, "source is not a directory"
@@ -52,14 +53,18 @@ function M.copy_tree(source, destination, exclude, relative)
     if not name then break end
     local relative_path = relative == "" and name or (relative .. "/" .. name)
     if not exclude[relative_path] then
+      budget.entries = budget.entries + 1
+      if budget.entries > budget.max_entries then return nil, "workspace exceeds the staging entry limit" end
       local src, dst = M.join(source, name), M.join(destination, name)
       local stat = uv.fs_lstat(src)
       if not stat or stat.type == "link" then
         return nil, "symlinks and unreadable files are not allowed in exercise workspaces"
       elseif stat.type == "directory" then
-        local ok, err = M.copy_tree(src, dst, exclude, relative_path)
+        local ok, err = M.copy_tree(src, dst, exclude, relative_path, budget)
         if not ok then return nil, err end
       elseif stat.type == "file" then
+        budget.bytes = budget.bytes + stat.size
+        if budget.bytes > budget.max_bytes then return nil, "workspace exceeds the staging byte limit" end
         local data, err = M.read(src)
         if not data then return nil, err end
         local ok, write_err = M.write(dst, data)
