@@ -1,0 +1,1 @@
+{"schema_version":1,"id":"control-flow","runner":"cargo-test","package":"forja_control_flow","assessment_file":"assessment.rs","solution_file":"solution.rs","timeout_ms":30000}

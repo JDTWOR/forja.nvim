@@ -1,0 +1,1 @@
+{"schema_version":1,"id":"primitive-types","runner":"cargo-test","package":"forja_primitive_types","assessment_file":"assessment.rs","solution_file":"solution.rs","timeout_ms":30000}
