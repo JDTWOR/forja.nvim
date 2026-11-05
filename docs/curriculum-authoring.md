@@ -15,6 +15,14 @@ courses/<language>/exercises/<exercise-id>/
     tests/public.rs
   assessment.rs
   solution.rs
+  transfer/
+    exercise.json
+    starter/
+      Cargo.toml
+      src/lib.rs
+      tests/public.rs
+    assessment.rs
+    solution.rs
 ```
 
 The current loader discovers `courses/*/foundations.json`. New built-in track
@@ -40,7 +48,8 @@ The top-level object includes:
 Each lesson has a stable `id`, `module`, Spanish `title`, `objective`, stable
 concept tags, a list of prerequisite lesson IDs, `explanation`, `example`,
 retrieval `questions`, `guided` strategy, `requirements`, `variation`, six
-graduated `hints`, and an `exercise` reference. IDs accept lowercase letters,
+base `hints`, optional six `variation_hints` (the base ladder is reused when
+omitted), and an `exercise` reference. IDs accept lowercase letters,
 numbers, dots, underscores and hyphens. Prefix IDs by language or domain to
 avoid collisions as tracks grow. A prerequisite graph must be acyclic.
 
@@ -51,7 +60,8 @@ Example exercise reference:
   "project_dir": "exercises/variables-mutability",
   "starter_dir": "starter",
   "assessment_file": "assessment.rs",
-  "solution_file": "solution.rs"
+  "solution_file": "solution.rs",
+  "variation_dir": "transfer"
 }
 ```
 
@@ -66,6 +76,9 @@ solution filenames, and a timeout between 1 and 120 seconds.
   English.
 - Give every task a learning objective, explicit constraints, examples, and
   boundary cases.
+- A transfer variation has a dedicated project under `variation_dir` with its
+  own visible tests, hidden assessment, and reference solution. Its progress is
+  recorded separately and does not unlock the base curriculum.
 - A variation must change what the learner reasons about, not just names.
 - Keep visible tests in `starter/tests/public.rs` so learners can inspect and run
   them. Put assessment tests in `assessment.rs`; the runner stages that file only

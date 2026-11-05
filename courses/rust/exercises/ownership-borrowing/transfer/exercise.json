@@ -1,0 +1,1 @@
+{"schema_version":1,"id":"ownership-borrowing","runner":"cargo-test","package":"forja_transfer_borrowing","assessment_file":"assessment.rs","solution_file":"solution.rs","timeout_ms":30000}

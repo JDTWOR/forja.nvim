@@ -8,15 +8,17 @@ local function result_output(result)
   return table.concat(parts, "\n"):gsub("\n+$", "")
 end
 
-function M.run(track, lesson, workspace, assessment, timeout_ms, callback)
+function M.run(track, lesson, workspace, assessment, timeout_ms, callback, variation)
   if M.active then callback({ error = "A Forja process is already running" }); return end
   local exercise = lesson.exercise
-  local manifest = exercise._manifest
+  local manifest = variation and exercise._variation_manifest or exercise._manifest
+  if variation and not manifest then callback({ error = "this lesson has no dedicated transfer assessment" }); return end
+  local assessment_file = variation and manifest.assessment_file or exercise.assessment_file
   local temporary = nil
   local cwd = workspace
 
   if assessment then
-    if not fs.safe_relative(exercise.assessment_file) then
+    if not fs.safe_relative(assessment_file) then
       callback({ error = "unsafe assessment path" }); return
     end
     local uv = vim.uv or vim.loop
@@ -43,7 +45,7 @@ function M.run(track, lesson, workspace, assessment, timeout_ms, callback)
     end
     local test_dir = fs.join(temporary, "tests")
     fs.ensure_dir(test_dir)
-    local assessment_source = fs.join(exercise._dir, exercise.assessment_file)
+    local assessment_source = fs.join(variation and exercise._variation_dir or exercise._dir, assessment_file)
     local assessment_code, read_err = fs.read(assessment_source)
     if not assessment_code then
       fs.remove_tree(temporary)
@@ -67,6 +69,7 @@ function M.run(track, lesson, workspace, assessment, timeout_ms, callback)
     if M.active == active then M.active = nil end
     if active.temporary then fs.remove_tree(active.temporary) end
     result.assessment = assessment
+    result.variation = variation == true
     result.cancelled = active.cancelled
     if not result.error then result.output = result_output(result) end
     vim.schedule(function() callback(result) end)

@@ -7,13 +7,24 @@ import tempfile
 
 
 root = Path(__file__).resolve().parents[1]
-exercises = sorted((root / "courses/rust/exercises").iterdir())
-for exercise in exercises:
+projects = []
+for exercise in sorted((root / "courses/rust/exercises").iterdir()):
+    projects.append((exercise.name, exercise / "starter", exercise / "solution.rs", exercise / "assessment.rs"))
+    transfer = exercise / "transfer"
+    if transfer.exists():
+        projects.append((f"{exercise.name} transfer", transfer / "starter", transfer / "solution.rs", transfer / "assessment.rs"))
+
+for name, starter, solution, assessment in projects:
     with tempfile.TemporaryDirectory(prefix="forja-solution-") as temporary:
         target = Path(temporary)
-        shutil.copytree(exercise / "starter", target, dirs_exist_ok=True)
-        shutil.copyfile(exercise / "solution.rs", target / "src/lib.rs")
-        shutil.copyfile(exercise / "assessment.rs", target / "tests/forja_assessment.rs")
-        print(f"Verifying {exercise.name}", flush=True)
+        shutil.copytree(starter, target, dirs_exist_ok=True)
+        print(f"Checking clean starter {name}", flush=True)
+        check = subprocess.run(["cargo", "check", "--offline"], cwd=target, check=True, capture_output=True, text=True)
+        diagnostics = check.stdout + check.stderr
+        if "warning:" in diagnostics:
+            raise RuntimeError(f"Starter {name} emits compiler warnings:\n{diagnostics}")
+        shutil.copyfile(solution, target / "src/lib.rs")
+        shutil.copyfile(assessment, target / "tests/forja_assessment.rs")
+        print(f"Verifying {name}", flush=True)
         subprocess.run(["cargo", "test", "--offline"], cwd=target, check=True)
-print(f"Verified {len(exercises)} reference solutions against visible and assessment tests.")
+print(f"Checked {len(projects)} clean starters and verified their reference solutions against visible and assessment tests.")

@@ -9,19 +9,23 @@ not unlock the next lesson; the assessment command must pass.
 Each of the first five lessons includes an objective, Spanish explanation,
 compact code example, retrieval questions, guided strategy, implementation
 requirements, and a transfer variation with an additional executable contract.
-Each Rust exercise includes visible
-examples, separately stored assessment assertions, and a verified reference
-solution. The learner writes code in a persistent workspace.
+Each Rust exercise includes visible examples, separately stored assessment
+assertions, and a verified reference solution. The learner writes code in a
+persistent workspace.
 
 The workflow is:
 
-1. Recall the concept and answer the short questions.
-2. Inspect the requirements and implement both the main task and variation.
+1. Use `:ForjaRecall` to answer the short questions before rereading; answers
+   are saved as practice evidence and are not automatically graded.
+2. Inspect the requirements and implement the main task.
 3. Run `:ForjaRun` for visible compiler/test feedback.
 4. Run `:ForjaTest` for the assessment and next-lesson gate.
 5. Review assistance and result history with `:ForjaProgress`.
 6. Revisit a completed exercise using `:ForjaReview`, which creates a clean
    starter copy for retrieval practice.
+7. Use `:ForjaPractice` to implement a dedicated transfer problem in a separate
+   workspace. Its test and assistance evidence is independent from the base
+   lesson and does not unlock curriculum progress.
 
 ## Assistance and outcomes
 

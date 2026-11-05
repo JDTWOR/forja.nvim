@@ -1,40 +1,81 @@
 local ui = require("forja.ui")
 local M = {}
 
-function M.render(lesson, workspace, mode)
-  local lines = {
-    "# " .. lesson.title,
-    "",
-    "## Objetivo",
-    lesson.objective,
-    "",
-    "## Conceptos",
-    table.concat(lesson.concepts, " · "),
-    "",
-    "## Explicación",
-    lesson.explanation,
-    "",
-    "## Ejemplo",
-    "```rust",
-  }
-  vim.list_extend(lines, vim.split(lesson.example, "\n", { plain = true }))
-  vim.list_extend(lines, { "```", "", "## Preguntas de recuperación" })
-  for _, question in ipairs(lesson.questions) do table.insert(lines, "- " .. question) end
-  vim.list_extend(lines, { "", "## Estrategia guiada", lesson.guided, "", "## Ejercicio", "" })
-  for _, requirement in ipairs(lesson.requirements) do table.insert(lines, "- " .. requirement) end
-  if mode == "practice" or mode == "review" then
-    vim.list_extend(lines, { "", "## Variación de transferencia", lesson.variation })
+local concept_labels = {
+  ["rust.binding"] = "bindings", ["rust.mutability"] = "mutability", ["rust.shadowing"] = "shadowing",
+  ["rust.scalar-types"] = "tipos escalares", ["rust.integer-types"] = "tipos enteros",
+  ["rust.floating-point"] = "punto flotante", ["rust.bool"] = "booleanos",
+  ["rust.if"] = "expresiones if", ["rust.matching-ranges"] = "rangos y match", ["rust.branch-coverage"] = "cobertura de ramas",
+  ["rust.functions"] = "funciones", ["rust.parameters"] = "parámetros", ["rust.return-values"] = "valores de retorno",
+  ["rust.decomposition"] = "descomposición", ["rust.ownership"] = "ownership", ["rust.borrowing"] = "borrowing",
+  ["rust.string-slice"] = "string slices", ["rust.lifetimes-intro"] = "lifetimes",
+}
+
+local function concepts(items)
+  local result = {}
+  for _, item in ipairs(items or {}) do table.insert(result, concept_labels[item] or item) end
+  return table.concat(result, " · ")
+end
+
+function M.render(lesson, workspace, mode, exam_active)
+  local lines
+  if mode == "practice" then
+    lines = {
+      "# Variación de transferencia · " .. lesson.title,
+      "",
+      "## Propósito",
+      "Aplica el concepto en una tarea distinta. Esta práctica tiene workspace y evaluación propios.",
+      "",
+      "## Reto",
+      lesson.variation,
+      "",
+      "## Evidencia",
+      "Los resultados de transferencia se guardan por separado y no desbloquean lecciones.",
+    }
+  else
+    lines = {
+      "# " .. lesson.title,
+      "",
+      "## Objetivo",
+      lesson.objective,
+      "",
+      "## Conceptos",
+      concepts(lesson.concepts),
+      "",
+      "## Explicación",
+      lesson.explanation,
+      "",
+      "## Ejemplo",
+      "```rust",
+    }
+    vim.list_extend(lines, vim.split(lesson.example, "\n", { plain = true }))
+    vim.list_extend(lines, { "```", "", "## Recuperación activa", "Antes de releer la explicación, responde de memoria con `:ForjaRecall`." })
+    for _, question in ipairs(lesson.questions) do table.insert(lines, "- " .. question) end
+    vim.list_extend(lines, { "", "## Estrategia guiada", lesson.guided, "", "## Ejercicio", "" })
+    for _, requirement in ipairs(lesson.requirements) do table.insert(lines, "- " .. requirement) end
+    if mode == "review" then
+      vim.list_extend(lines, { "", "## Práctica de recuperación", "Este workspace empieza limpio. Implementa la lección sin consultar tu solución guardada." })
+    end
   end
   vim.list_extend(lines, {
     "",
-    "Escribe tu solución en `src/lib.rs` y ejecuta `:ForjaRun` para los tests visibles.",
-    "`:ForjaTest` ejecuta la evaluación local aislada. Se requiere `:ForjaTrustLocal` una vez.",
+    "Código abierto en `src/lib.rs` · `r` tests visibles · `t` evaluación · `o` resultados.",
+    "`h` pista · `a` recuperación activa · `p` variación de transferencia.",
     "",
-    "Workspace: " .. workspace,
-    "",
-    "Cierra esta ventana con `q` o `<Esc>`. El buffer de código queda abierto.",
+    "Cierra con `q`, `<Esc>` o `:ForjaClose`. El código queda abierto.",
   })
-  ui.open(lines, mode == "practice" and "Variación · " .. lesson.title or lesson.title, { focus = false })
+  local action_line = "Acciones: q cerrar · r tests · t evaluar · a recordar · h pista · o resultados · p variación · :ForjaClose"
+  if mode == "practice" or mode == "review" then
+    action_line = action_line .. " · b volver al ejercicio base"
+    vim.list_extend(lines, { "", "`b` o `:ForjaReview stop` guarda esta copia y vuelve al workspace original." })
+  end
+  table.insert(lines, 2, action_line)
+  table.insert(lines, 3, "")
+  if exam_active then
+    table.insert(lines, 1, "⚠ EXAM MODE ACTIVO · tutor y pistas deshabilitados · :ForjaExam stop para terminar")
+    table.insert(lines, 2, "")
+  end
+  ui.open_lesson(lines, mode == "practice" and "Variación · " .. lesson.title or lesson.title, nil, mode)
 end
 
 return M

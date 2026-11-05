@@ -7,7 +7,8 @@
 - Persistent learner workspaces, visible tests, isolated local assessment copy,
   verified reference solutions and progress gates.
 - JSON progress persistence, backups, migrations, hints, local Exam Mode,
-  cancellation and health checks.
+  cancellation, health checks, ungraded active-recall capture and dedicated
+  transfer projects for each Rust lesson.
 - Headless domain/end-to-end tests and solution verification.
 
 ## Phase 2 — provider-backed tutor
@@ -24,8 +25,9 @@
 - Select and validate a maintained FSRS implementation/version with official
   vectors before scheduling concept recall cards.
 - Keep short recall cards distinct from coding reimplementation tasks.
-- Store review events, diagnose repeated failures, identify weak concepts, and
-  generate validated practice variations.
+- Store scheduled review events, diagnose repeated failures, identify weak
+  concepts, and generate additional validated practice variations. The initial
+  Rust transfer exercises are static, independently tested curriculum content.
 - Track first attempt, hints, AI use, delayed recall and transfer evidence.
 
 ## Phase 4 — independent assessments

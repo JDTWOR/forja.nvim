@@ -29,6 +29,7 @@ exercise.json       # schema version and runner metadata
 starter/            # copied once into the learner workspace
 assessment.rs       # hidden from the normal workspace
 solution.rs         # only revealed after :ForjaAbandon
+transfer/           # optional independent variation project and assessment
 ```
 
 Visible Rust tests live in `starter/tests/public.rs`. The assessment runner makes
@@ -52,7 +53,9 @@ exist. Review and focused practice attempts use distinct timestamped directories
 The single-user JSON adapter is the initial repository implementation. A future
 SQLite adapter can implement the same progress repository operations, with a
 one-time importer from schema version 1 JSON. No credentials are stored in the
-progress file.
+progress file. Recall answers are saved as ungraded evidence. Transfer attempts,
+hints, and tutor use are stored separately from the base lesson record and do
+not change prerequisite completion.
 
 ## Process and execution boundary
 
@@ -67,8 +70,9 @@ temporary copy; learner workspaces are copied without following symlinks.
 Cargo can run `build.rs`, procedural macros, compiler plugins, and learner test
 code with the current user's permissions. For that reason, local execution is
 blocked until the user confirms `:ForjaTrustLocal` for the exercise. The approval
-is saved per exercise. `--offline` prevents dependency downloads but is not a
-sandbox. Phase 1 does not claim isolation from the operating system.
+is saved per base exercise or transfer exercise. `--offline` prevents dependency
+downloads but is not a sandbox. Phase 1 does not claim isolation from the
+operating system.
 
 ## AI boundary
 

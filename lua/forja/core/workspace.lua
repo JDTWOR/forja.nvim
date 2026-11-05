@@ -31,13 +31,23 @@ function M.new_review(track, lesson)
   return target
 end
 
-function M.trusted(state, track, lesson)
-  local key = track.id .. "/" .. lesson.id
+function M.new_practice(track, lesson)
+  local source = lesson.exercise._variation_dir
+  if not source then return nil, "this lesson has no dedicated transfer exercise" end
+  local stamp = tostring(os.time()) .. "-" .. tostring((vim.uv or vim.loop).hrtime()):sub(-6)
+  local target = fs.join(config.get().data_dir, "reviews", track.id, lesson.id, "transfer-" .. stamp)
+  local ok, err = fs.copy_tree(fs.join(source, "starter"), target)
+  if not ok then return nil, "could not create a clean transfer workspace: " .. tostring(err) end
+  return target
+end
+
+function M.trusted(state, track, lesson, variation)
+  local key = track.id .. "/" .. lesson.id .. (variation and "/transfer" or "")
   return state.trusted_exercises[key] == true
 end
 
-function M.trust(state, track, lesson)
-  local key = track.id .. "/" .. lesson.id
+function M.trust(state, track, lesson, variation)
+  local key = track.id .. "/" .. lesson.id .. (variation and "/transfer" or "")
   state.trusted_exercises[key] = true
 end
 

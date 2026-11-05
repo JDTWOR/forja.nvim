@@ -1,0 +1,1 @@
+{"schema_version":1,"id":"variables-mutability","runner":"cargo-test","package":"forja_transfer_variables","assessment_file":"assessment.rs","solution_file":"solution.rs","timeout_ms":30000}

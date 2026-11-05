@@ -58,6 +58,12 @@ function M.validate(curriculum)
     if not string_list(lesson.hints, 6) then
       return nil, "lesson " .. lesson.id .. " must provide the six hint levels"
     end
+    if lesson.variation_hints ~= nil and not string_list(lesson.variation_hints, 6) then
+      return nil, "lesson " .. lesson.id .. " must provide the six transfer hint levels"
+    end
+    if lesson.exercise.variation_dir ~= nil and not valid_id(lesson.exercise.variation_dir) then
+      return nil, "lesson " .. lesson.id .. " has an invalid variation_dir"
+    end
     ids[lesson.id] = lesson
   end
 

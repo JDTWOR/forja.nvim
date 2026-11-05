@@ -47,6 +47,31 @@ local function decode(path)
     end
     lesson.exercise._manifest = manifest
     lesson.exercise._dir = fs.join(track_dir, exercise.project_dir)
+    if exercise.variation_dir then
+      local variation_root = fs.join(lesson.exercise._dir, exercise.variation_dir)
+      local variation_text = fs.read(fs.join(variation_root, "exercise.json"))
+      local variation_ok, variation_manifest = pcall(vim.json.decode, variation_text or "")
+      if not variation_ok or type(variation_manifest) ~= "table"
+        or variation_manifest.schema_version ~= 1
+        or variation_manifest.id ~= lesson.id
+        or variation_manifest.runner ~= "cargo-test"
+        or type(variation_manifest.package) ~= "string"
+        or not variation_manifest.package:match("^[a-z][a-z0-9_]*$")
+        or type(variation_manifest.timeout_ms) ~= "number"
+        or variation_manifest.timeout_ms < 1000 or variation_manifest.timeout_ms > 120000
+        or not fs.safe_relative(variation_manifest.assessment_file)
+        or not fs.safe_relative(variation_manifest.solution_file) then
+        return nil, "invalid transfer exercise manifest for " .. lesson.id
+      end
+      if not fs.read(fs.join(variation_root, variation_manifest.assessment_file))
+        or not fs.read(fs.join(variation_root, variation_manifest.solution_file))
+        or not fs.read(fs.join(variation_root, "starter/Cargo.toml"))
+        or not fs.read(fs.join(variation_root, "starter/src/lib.rs")) then
+        return nil, "transfer exercise files are missing for " .. lesson.id
+      end
+      lesson.exercise._variation_dir = variation_root
+      lesson.exercise._variation_manifest = variation_manifest
+    end
   end
   result._ordered_lessons = sorted
   return result

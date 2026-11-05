@@ -40,20 +40,17 @@ features in your editor.
 
 ## Install with LazyVim
 
-Add `lua/plugins/forja.lua` to your Neovim configuration. This local `dir` spec
-uses the repository location from this workspace; change it if you clone Forja
-elsewhere:
+Add `lua/plugins/forja.lua` to your Neovim configuration:
 
 ```lua
 return {
   {
-    dir = vim.fn.expand("~/Documents/Personal/forja"),
-    name = "forja.nvim",
+    "JDTWOR/forja.nvim",
     main = "forja",
     cmd = {
-      "Forja", "ForjaStart", "ForjaTracks", "ForjaLesson", "ForjaNext",
+      "Forja", "ForjaClose", "ForjaResult", "ForjaStart", "ForjaTracks", "ForjaLesson", "ForjaNext",
       "ForjaRun", "ForjaTest", "ForjaTrustLocal", "ForjaCancel", "ForjaHint",
-      "ForjaTutor", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaAbandon",
+      "ForjaTutor", "ForjaRecall", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaAbandon",
       "ForjaProgress", "ForjaHealth", "ForjaExport",
     },
     opts = {
@@ -78,22 +75,30 @@ opts = { keymaps = { enabled = true, prefix = "<leader>F" } }
 ## First lesson walkthrough
 
 1. Run `:Forja` and press `s`, or run `:ForjaStart rust-foundations`.
-2. Read the lesson panel and work in the opened `src/lib.rs` buffer. The starter
-   workspace is under `stdpath("data")/forja/workspaces/`.
+2. Read the lesson beside the opened `src/lib.rs` buffer on wide terminals. On
+   narrow terminals, the focused lesson view has `q`/`Esc` to return to code.
+   `:ForjaClose` works from either pane. The workspace is under
+   `stdpath("data")/forja/workspaces/`.
 3. Run `:ForjaTrustLocal` once for this exercise and confirm the prompt. Rust
    builds and tests execute local code with your user permissions.
-4. Run `:ForjaRun` for visible tests and compiler output. Fix your implementation
-   and run it again as needed.
+4. Run `:ForjaRun` for visible tests and compiler output. If the buffer has
+   unsaved changes, Forja asks whether to save and run or cancel. Fix your
+   implementation and run it again as needed.
 5. Run `:ForjaTest` for the assessment. A failure is saved as evidence but does
    not unlock the next lesson. A passing assessment unlocks it.
 6. Run `:ForjaNext` to continue, `:ForjaHint` for the next graduated hint, or
    `:ForjaAbandon` if you want to stop and reveal the reference solution.
 
+Use `:ForjaRecall` (or `a` in the dashboard) to answer each retrieval question
+from memory. Forja stores your response without grading it as proof of
+understanding. After answering, compare your explanation with the lesson.
+
 If you have already completed a lesson, `:ForjaReview` lets you choose it and
 creates a separate clean starter workspace. It will not overwrite your original
-solution. `:ForjaPractice` opens the lesson's transfer variation in its own
-clean workspace, where the variation is checked by the same public and hidden
-tests. Run `:ForjaReview stop` to return to your persistent learner workspace;
+solution. `:ForjaPractice` opens a dedicated transfer exercise with its own
+starter, visible tests, hidden assessment and saved evidence. Approve its local
+Cargo run separately with `:ForjaTrustLocal`. Transfer results do not unlock
+lessons. Run `:ForjaReview stop` to return to your persistent learner workspace;
 the practice copy stays under `forja/reviews/`.
 
 ## Commands
@@ -101,6 +106,8 @@ the practice copy stays under `forja/reviews/`.
 | Command | Behavior |
 | --- | --- |
 | `:Forja` | Open the dashboard with current objective, progress, weak lessons, and recent results. |
+| `:ForjaClose` | Close the lesson or focused Forja view and return to code. |
+| `:ForjaResult` | Open the latest test output without replacing the lesson. |
 | `:ForjaStart [track-id]` | Start/resume the first eligible lesson in a track. |
 | `:ForjaTracks` | Browse installed tracks. |
 | `:ForjaLesson [lesson-id]` | Open the current or a prerequisite-eligible lesson. |
@@ -110,6 +117,7 @@ the practice copy stays under `forja/reviews/`.
 | `:ForjaTrustLocal` | Explicitly approve local code execution for this exercise. |
 | `:ForjaCancel` | Request cancellation of the active Forja process. |
 | `:ForjaHint` | Reveal and record the next hint in the six-step ladder. |
+| `:ForjaRecall` | Capture short answers to the lesson's retrieval questions. |
 | `:ForjaTutor` | Ask a Socratic question (fixed offline mock unless a provider is configured). |
 | `:ForjaReview [lesson-id\|stop]` | Start clean retrieval practice for a completed lesson, or detach the review workspace. |
 | `:ForjaPractice [lesson-id]` | Open the transfer variation. |
@@ -179,8 +187,11 @@ bash tests/run.sh
 ```
 
 The suite uses no Plenary or other Neovim test dependency. It covers graph
-validation, migrations, persistence, assistance accounting, command loading,
-UI cleanup, assessment gating, local execution, timeout, and cancellation.
+validation, migrations, persistence, assistance and recall accounting, command
+loading, responsive UI cleanup and resize, assessment gating, unsaved-buffer
+safety, separate transfer workspaces, timeout, and cancellation. It also checks
+that all ten clean starters compile without warnings and verifies every
+reference solution against visible and assessment tests.
 
 ## Security limits
 

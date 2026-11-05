@@ -24,6 +24,12 @@ function M.lesson_status(state, track_id, lesson_id)
   return track.lessons[lesson_id]
 end
 
+function M.variation_status(state, track_id, lesson_id)
+  local record = M.lesson_status(state, track_id, lesson_id)
+  record.variation = record.variation or { attempts = {}, hints = 0, ai_assistance = 0, pending_hints = 0, pending_ai_assistance = 0 }
+  return record.variation
+end
+
 function M.first_incomplete(track, state)
   local progress = M.track(state, track.id)
   for _, lesson in ipairs(track._ordered_lessons) do
@@ -42,6 +48,21 @@ end
 
 function M.record_attempt(state, track, lesson, result)
   local record = M.lesson_status(state, track.id, lesson.id)
+  if result.variation then
+    local variation = M.variation_status(state, track.id, lesson.id)
+    local attempt = {
+      at = os.time(), passed = result.passed == true, assessment = result.assessment == true,
+      test_scope = result.assessment == true and "transfer_assessment" or "transfer_visible",
+      independent = result.passed == true and result.assessment == true and (result.hints or 0) == 0 and (result.ai_assistance or 0) == 0,
+      hints = result.hints or 0, ai_assistance = result.ai_assistance or 0,
+      execution_seconds = result.execution_seconds or 0, exam = result.exam == true,
+    }
+    table.insert(variation.attempts, attempt)
+    variation.pending_hints, variation.pending_ai_assistance = 0, 0
+    table.insert(state.history, { at = attempt.at, track_id = track.id, lesson_id = lesson.id,
+      passed = attempt.passed, assessment = attempt.assessment, independent = attempt.independent, variation = true })
+    return attempt
+  end
   local first_assessment_attempt = result.assessment == true and record.first_assessment_at == nil
   local attempt_hints = result.hints
   if attempt_hints == nil then attempt_hints = record.pending_hints or 0 end
@@ -87,22 +108,30 @@ function M.record_attempt(state, track, lesson, result)
   return attempt
 end
 
-function M.add_hint(state, track_id, lesson_id)
-  local record = M.lesson_status(state, track_id, lesson_id)
+function M.add_hint(state, track_id, lesson_id, variation_mode)
+  local record = variation_mode and M.variation_status(state, track_id, lesson_id) or M.lesson_status(state, track_id, lesson_id)
   record.hints = record.hints + 1
   record.pending_hints = (record.pending_hints or 0) + 1
   return record.hints
 end
 
-function M.add_ai_assistance(state, track_id, lesson_id)
-  local record = M.lesson_status(state, track_id, lesson_id)
+function M.add_ai_assistance(state, track_id, lesson_id, variation_mode)
+  local record = variation_mode and M.variation_status(state, track_id, lesson_id) or M.lesson_status(state, track_id, lesson_id)
   record.ai_assistance = (record.ai_assistance or 0) + 1
   record.pending_ai_assistance = (record.pending_ai_assistance or 0) + 1
   return record.ai_assistance
 end
 
-function M.reset_pending_assistance(state, track_id, lesson_id)
+function M.record_recall(state, track_id, lesson_id, answers)
   local record = M.lesson_status(state, track_id, lesson_id)
+  record.recall_history = record.recall_history or {}
+  local recall = { at = os.time(), answers = answers }
+  table.insert(record.recall_history, recall)
+  return recall
+end
+
+function M.reset_pending_assistance(state, track_id, lesson_id, variation_mode)
+  local record = variation_mode and M.variation_status(state, track_id, lesson_id) or M.lesson_status(state, track_id, lesson_id)
   record.pending_hints = 0
   record.pending_ai_assistance = 0
 end

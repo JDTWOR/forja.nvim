@@ -25,6 +25,10 @@ local tracks, curriculum_err = curriculum.list()
 check(tracks ~= nil, curriculum_err or "curriculum list failed")
 check(#tracks == 1 and #tracks[1]._ordered_lessons == 5, "five real lessons load")
 local track = tracks[1]
+for _, item in ipairs(track._ordered_lessons) do
+  check(item.exercise._variation_dir ~= nil and item.exercise._variation_manifest ~= nil,
+    "each Rust lesson has a validated independent transfer project")
+end
 
 local function graph_lesson(id, prerequisite)
   return {
@@ -86,12 +90,19 @@ local first_attempt = progress.record_attempt(fresh_state, track, first, {
   passed = true, assessment = true, hints = 0, ai_assistance = 0,
 })
 check(first_attempt.independent == true and fresh_state.tracks[track.id].lessons[first.id].first_assessment_success == true, "unaided first assessment is recorded as independent evidence")
+progress.record_recall(fresh_state, track.id, first.id, { "binding answer", "shadowing answer" })
+check(#fresh_state.tracks[track.id].lessons[first.id].recall_history == 1, "recall answers are stored separately from graded attempts")
 local exam_state = storage.default()
 progress.add_hint(exam_state, track.id, first.id)
 local exam_attempt = progress.record_attempt(exam_state, track, first, {
   passed = true, assessment = true, hints = 0, ai_assistance = 0, exam = true,
 })
 check(exam_attempt.independent == true, "Exam Mode can establish independent evidence after prior assisted practice")
+local transfer_hint_state = storage.default()
+progress.add_hint(transfer_hint_state, track.id, first.id, true)
+check(progress.lesson_status(transfer_hint_state, track.id, first.id).hints == 0
+  and progress.variation_status(transfer_hint_state, track.id, first.id).hints == 1,
+  "transfer hint accounting is separate from base lesson assistance")
 check(progress.first_incomplete(track, fresh_state).id == track._ordered_lessons[2].id, "verified completion unlocks the next lesson")
 
 check(fs.safe_relative("exercises/rust"), "relative curriculum paths are accepted")
@@ -118,6 +129,11 @@ check(vim.uv.fs_stat(storage.path() .. ".bak") ~= nil, "previous progress snapsh
 local no_provider_response
 ai.request(nil, {}, function(response) no_provider_response = response end)
 check(no_provider_response and no_provider_response.error, "missing AI provider fails clearly")
+local base_context = require("forja.ai.context").build(track, first, fresh_state, "question", "socratic")
+local transfer_context = require("forja.ai.context").build(track, first, fresh_state, "question", "socratic", true)
+check(base_context.task_kind == "lesson" and transfer_context.task_kind == "transfer"
+  and transfer_context.objective == first.variation and transfer_context.learner_code_included == false,
+  "tutor context identifies transfer tasks without sending learner code")
 local malformed_response
 ai.request({ complete = function(_, callback) callback({ json = "{}" }) end }, {}, function(response) malformed_response = response end)
 check(malformed_response and malformed_response.error, "malformed AI response is rejected")
@@ -126,11 +142,12 @@ vim.cmd("source plugin/forja.lua")
 config.setup({ data_dir = temporary, runner = { timeout_ms = 30000 } })
 check(vim.fn.exists(":Forja") == 2, "plugin runtime registers commands when sourced")
 commands.setup()
-for _, command in ipairs({ "Forja", "ForjaStart", "ForjaTracks", "ForjaLesson", "ForjaNext", "ForjaRun", "ForjaTest", "ForjaHint", "ForjaTutor", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaProgress", "ForjaHealth", "ForjaTrustLocal", "ForjaCancel", "ForjaExport" }) do
+for _, command in ipairs({ "Forja", "ForjaClose", "ForjaResult", "ForjaStart", "ForjaTracks", "ForjaLesson", "ForjaNext", "ForjaRun", "ForjaTest", "ForjaHint", "ForjaRecall", "ForjaTutor", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaProgress", "ForjaHealth", "ForjaTrustLocal", "ForjaCancel", "ForjaExport" }) do
   check(vim.fn.exists(":" .. command) == 2, "command is registered: " .. command)
 end
 vim.api.nvim_cmd({ cmd = "Forja" }, {})
 check(ui.current and vim.api.nvim_buf_is_valid(ui.current.buf), ":Forja opens the native dashboard")
+check(vim.fn.maparg("a", "n", false, true).buffer == 1, "dashboard exposes active recall as a buffer-local action")
 ui.close()
 local export_path = fs.join(temporary, "export/progress-copy.json")
 commands.export(export_path)
@@ -155,17 +172,84 @@ state.active_track = track.id
 state.current_lesson = lesson.id
 state.trusted_exercises[key] = true
 check(progress.save(state), "test state saved")
+vim.o.columns, vim.o.lines = 120, 40
 commands.start(track.id)
+check(ui.lesson_view and ui.lesson_view.win and vim.api.nvim_win_is_valid(ui.lesson_view.win), "starting a lesson opens a dedicated reading view")
+check(ui.lesson_view.kind == "split" and vim.api.nvim_get_current_buf() == vim.fn.bufnr(source_file), "wide terminals keep code focused beside a lesson split")
+check(vim.wo[ui.lesson_view.win].wrap and vim.wo[ui.lesson_view.win].linebreak, "lesson prose wraps at word boundaries")
+local first_lesson_text = table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n")
+check(first_lesson_text:find("bindings", 1, true) and not first_lesson_text:find("rust.binding", 1, true), "lesson concepts use learner-facing labels instead of raw IDs")
+check(not first_lesson_text:find(exercise_workspace, 1, true), "lesson content does not expose the local workspace path")
+local has_lesson_run_mapping = false
+for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(ui.lesson_view.buf, "n")) do
+  if mapping.lhs == "r" then has_lesson_run_mapping = true end
+end
+check(has_lesson_run_mapping and vim.fn.maparg("r", "n") == "", "lesson actions are buffer-local and do not override source editing keys")
+vim.o.columns, vim.o.lines = 100, 30
+vim.api.nvim_exec_autocmds("VimResized", {})
+check(vim.api.nvim_win_get_width(ui.lesson_view.win) <= 64, "lesson split resizes inside its configured bounds")
+vim.o.columns, vim.o.lines = 80, 24
+vim.api.nvim_exec_autocmds("VimResized", {})
+check(ui.lesson_view.kind == "float" and vim.api.nvim_win_get_width(ui.lesson_view.win) <= 78,
+  "resizing below the split threshold switches to a bounded reading float")
+check(vim.api.nvim_get_current_buf() == vim.fn.bufnr(source_file), "responsive layout change preserves code focus")
+vim.o.columns, vim.o.lines = 120, 40
+vim.api.nvim_exec_autocmds("VimResized", {})
+check(ui.lesson_view.kind == "split", "expanding the terminal restores the side-by-side lesson split")
+vim.api.nvim_cmd({ cmd = "ForjaClose" }, {})
+check(ui.lesson_view == nil and vim.api.nvim_buf_get_name(0) == source_file, "ForjaClose returns to the learner code buffer")
+vim.o.columns, vim.o.lines = 80, 24
+vim.api.nvim_cmd({ cmd = "ForjaLesson" }, {})
+check(ui.lesson_view and ui.lesson_view.kind == "float" and vim.api.nvim_win_is_valid(ui.lesson_view.win), "narrow terminals use a focused, bounded reading view")
+check(vim.api.nvim_win_get_width(ui.lesson_view.win) <= vim.o.columns - 2 and vim.api.nvim_win_get_height(ui.lesson_view.win) <= vim.o.lines - 2, "narrow lesson view fits the available terminal")
+vim.api.nvim_buf_call(ui.lesson_view.buf, function() vim.cmd("normal q") end)
+check(ui.lesson_view == nil and vim.api.nvim_buf_get_name(0) == source_file, "q closes the narrow lesson and restores code focus")
+vim.o.columns, vim.o.lines = 120, 40
+vim.api.nvim_cmd({ cmd = "ForjaClose" }, {})
+vim.api.nvim_cmd({ cmd = "ForjaLesson" }, {})
+local original_input_for_recall = vim.ui.input
+local recall_index = 0
+vim.ui.input = function(_, callback) recall_index = recall_index + 1; callback("respuesta recuperada " .. recall_index) end
+commands.recall()
+vim.ui.input = original_input_for_recall
+local recalled = progress.load().tracks[track.id].lessons[lesson.id].recall_history
+check(#recalled == 1 and recalled[1].answers[2] == "respuesta recuperada 2", "ForjaRecall collects and persists answers without grading them")
+ui.close("float")
+local source_buf = vim.fn.bufnr(source_file)
+check(source_buf > 0 and vim.api.nvim_buf_is_loaded(source_buf), "learner source buffer is open")
+local before_lines = vim.api.nvim_buf_get_lines(source_buf, 0, -1, false)
+table.insert(before_lines, "// unsaved-buffer safety check")
+vim.api.nvim_buf_set_lines(source_buf, 0, -1, false, before_lines)
+vim.bo[source_buf].modified = true
+local original_select = vim.ui.select
+vim.ui.select = function(items, _, callback) callback(items[2]) end
+vim.api.nvim_cmd({ cmd = "ForjaRun" }, {})
+vim.ui.select = original_select
+local cancelled_state = progress.load()
+local cancelled_record = cancelled_state.tracks[track.id].lessons[lesson.id]
+check(#cancelled_record.attempts == 0 and vim.bo[source_buf].modified, "canceling the unsaved-buffer prompt neither runs tests nor discards edits")
+local focus_before_run = vim.api.nvim_get_current_win()
+vim.ui.select = function(items, _, callback) callback(items[1]) end
+vim.api.nvim_cmd({ cmd = "ForjaRun" }, {})
+vim.ui.select = original_select
+check(not vim.bo[source_buf].modified and fs.read(source_file):find("unsaved-buffer safety check", 1, true), "save-and-run persists the exact edited buffer before testing")
 local function run_command()
   vim.api.nvim_cmd({ cmd = "ForjaTest" }, {})
 end
-vim.api.nvim_cmd({ cmd = "ForjaRun" }, {})
 local reached_visible_attempt = vim.wait(20000, function()
   local current = progress.load()
   local entry = current and current.tracks[track.id] and current.tracks[track.id].lessons[lesson.id]
   return entry and #entry.attempts >= 1 and entry.attempts[1].test_scope == "visible"
 end, 25)
 check(reached_visible_attempt, "ForjaRun executes visible Cargo tests asynchronously")
+check(vim.api.nvim_get_current_win() == focus_before_run, "test completion does not steal editor focus")
+local visible_result_text = table.concat(ui.last_result.lines, "\n")
+check(ui.last_result.title:find("Tests visibles", 1, true) and visible_result_text:find("test result: FAILED", 1, true),
+  "visible assertion failures retain inspectable Cargo diagnostics")
+vim.api.nvim_cmd({ cmd = "ForjaResult" }, {})
+check(ui.current and vim.api.nvim_win_is_valid(ui.current.win), "ForjaResult opens stored feedback on demand")
+ui.close("float")
+check(ui.lesson_view and vim.api.nvim_win_is_valid(ui.lesson_view.win), "closing results preserves the lesson view")
 run_command()
 local reached_first_attempt = vim.wait(20000, function()
   local current = progress.load()
@@ -176,10 +260,25 @@ check(reached_first_attempt, "assessment runner reports the incorrect starter")
 state = progress.load()
 check(state.tracks[track.id].lessons[lesson.id].completed ~= true, "incorrect assessment does not unlock progress")
 check(state.tracks[track.id].lessons[lesson.id].first_assessment_success == false, "first assessment outcome is preserved")
+local assessment_result_text = table.concat(ui.last_result.lines, "\n")
+check(assessment_result_text:find("La evaluación no se aprobó", 1, true)
+  and not assessment_result_text:find("assessment_distinguishes_rounding_order", 1, true),
+  "failed hidden assessments provide guidance without exposing hidden assertions")
 local next_before_pass = state.current_lesson
 commands.next()
 state = progress.load()
 check(state.current_lesson == next_before_pass, "next lesson remains gated after failure")
+
+check(fs.write(source_file, 'pub fn broken() -> u32 { let value: u32 = "not a number"; value }\n'),
+  "compiler-diagnostic fixture is written")
+vim.api.nvim_cmd({ cmd = "ForjaRun" }, {})
+local reached_compile_error = vim.wait(20000, function()
+  local current = progress.load()
+  local entry = current and current.tracks[track.id] and current.tracks[track.id].lessons[lesson.id]
+  return entry and #entry.attempts >= 3 and ui.last_result and ui.last_result.title:find("Tests visibles", 1, true)
+end, 25)
+check(reached_compile_error and table.concat(ui.last_result.lines, "\n"):find("error[E0308]", 1, true),
+  "compiler errors remain distinct and inspectable")
 
 local solution = fs.read(fs.join(lesson.exercise._dir, lesson.exercise.solution_file))
 check(solution ~= nil, "reference solution is available to the verification harness")
@@ -189,15 +288,39 @@ run_command()
 local reached_pass = vim.wait(30000, function()
   local current = progress.load()
   local entry = current and current.tracks[track.id] and current.tracks[track.id].lessons[lesson.id]
-  return entry and #entry.attempts >= 3 and entry.completed == true
+  return entry and #entry.attempts >= 4 and entry.completed == true
 end, 25)
 check(reached_pass, "verified assessment passes and persists completion")
 state = progress.load()
 check(state.tracks[track.id].lessons[lesson.id].mastery_evidence.level == "independently_demonstrated", "assessment stores mastery evidence")
 check(vim.uv.fs_stat(fs.join(exercise_workspace, "tests/forja_assessment.rs")) == nil, "assessment copy is removed after the process")
+local attempts_before_missing_cargo = #state.tracks[track.id].lessons[lesson.id].attempts
+local original_path = vim.env.PATH
+vim.env.PATH = ""
+ui.last_result = nil
+vim.api.nvim_cmd({ cmd = "ForjaRun" }, {})
+local missing_cargo_reported = vim.wait(10000, function()
+  return ui.last_result and ui.last_result.title == "Cargo no disponible"
+end, 20)
+vim.env.PATH = original_path
+check(missing_cargo_reported, "missing Cargo produces actionable execution guidance")
+state = progress.load()
+check(#state.tracks[track.id].lessons[lesson.id].attempts == attempts_before_missing_cargo,
+  "missing Cargo is not counted as a learner attempt")
 commands.next()
 state = progress.load()
 check(state.current_lesson == track._ordered_lessons[2].id, "ForjaNext opens the newly eligible lesson")
+local second_source = vim.api.nvim_buf_get_name(0)
+local second_code_buf = vim.api.nvim_get_current_buf()
+vim.bo[second_code_buf].modified = true
+vim.api.nvim_set_current_win(ui.lesson_view.win)
+commands.lesson(first.id)
+state = progress.load()
+check(state.current_lesson == track._ordered_lessons[2].id and vim.api.nvim_buf_get_name(second_code_buf) == second_source,
+  "failed navigation leaves active lesson/code unchanged (lesson=" .. tostring(state.current_lesson)
+    .. ", expected=" .. track._ordered_lessons[2].id .. ", buffer=" .. vim.api.nvim_buf_get_name(second_code_buf) .. ")")
+vim.bo[second_code_buf].modified = false
+vim.api.nvim_set_current_win(ui.lesson_view.return_win)
 
 commands.hint()
 state = progress.load()
@@ -215,24 +338,67 @@ local tutor_recorded = vim.wait(1000, function()
 end, 20)
 check(tutor_recorded, "offline Socratic tutor is available and assistance is recorded")
 
+state = progress.load()
+local transfer_lesson = track._ordered_lessons[2]
+require("forja.core.workspace").trust(state, track, transfer_lesson)
+check(progress.save(state), "base exercise trust is saved for transfer-boundary verification")
+check(require("forja.core.workspace").trusted(state, track, transfer_lesson)
+  and not require("forja.core.workspace").trusted(state, track, transfer_lesson, true),
+  "base exercise approval does not grant transfer workspace execution")
 commands.practice(track._ordered_lessons[2].id)
 local practice_source = vim.api.nvim_buf_get_name(0)
 check(practice_source:find("/reviews/", 1, true) ~= nil, "focused practice opens a separate clean workspace")
 local practice_text = fs.read(practice_source)
-check(practice_text and practice_text:find("todo!", 1, true), "focused practice does not reveal the saved learner solution")
+check(practice_text and practice_text:find("todo!", 1, true) and practice_text:find("sensor_mean", 1, true), "focused practice opens only its dedicated transfer task")
+local transfer_solution = fs.read(fs.join(transfer_lesson.exercise._variation_dir, transfer_lesson.exercise._variation_manifest.solution_file))
+check(transfer_solution ~= nil, "transfer reference solution is available to the verification harness")
+local practice_buf = vim.api.nvim_get_current_buf()
+vim.api.nvim_buf_set_lines(practice_buf, 0, -1, false, vim.split(transfer_solution, "\n", { plain = true }))
+vim.bo[practice_buf].modified = true
+local original_select_for_trust = vim.ui.select
+vim.ui.select = function(items, _, callback) callback(items[1]) end
+commands.trust_local()
+vim.api.nvim_cmd({ cmd = "ForjaTest" }, {})
+vim.ui.select = original_select_for_trust
+local reached_transfer = vim.wait(30000, function()
+  local current = progress.load()
+  local entry = current and current.tracks[track.id] and current.tracks[track.id].lessons[transfer_lesson.id]
+  return entry and entry.variation and #entry.variation.attempts > 0
+end, 25)
+check(reached_transfer, "dedicated transfer assessment executes")
+state = progress.load()
+local transfer_record = state.tracks[track.id].lessons[transfer_lesson.id]
+check(transfer_record.variation.attempts[1].passed and transfer_record.variation.attempts[1].independent,
+  "independent transfer evidence is stored separately")
+check(not transfer_record.completed and #transfer_record.attempts == 0, "transfer success cannot unlock or complete the base lesson")
+check(vim.uv.fs_stat(fs.join(vim.fn.fnamemodify(practice_source, ":h:h"), "tests/forja_assessment.rs")) == nil,
+  "dedicated transfer assessment remains outside its learner workspace")
+local saved_transfer_lines = vim.api.nvim_buf_get_lines(practice_buf, 0, -1, false)
+table.insert(saved_transfer_lines, "// saved when detaching from transfer practice")
+vim.api.nvim_buf_set_lines(practice_buf, 0, -1, false, saved_transfer_lines)
+vim.bo[practice_buf].modified = true
+vim.api.nvim_set_current_win(ui.lesson_view.win)
 commands.review("stop")
 local returned_source = vim.api.nvim_buf_get_name(0)
 check(returned_source:find("/workspaces/", 1, true) ~= nil, "stopping focused practice restores the persistent learner workspace")
 check(vim.uv.fs_stat(practice_source) ~= nil, "stopping practice preserves its separate workspace")
+check(fs.read(practice_source):find("saved when detaching", 1, true) ~= nil,
+  "stopping practice saves edits from code buffers behind the lesson pane")
 
-state.exam_active = true
+commands.exam()
+check(table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n"):find("EXAM MODE ACTIVO", 1, true) ~= nil,
+  "Exam Mode is visible in the active lesson panel")
+state = progress.load()
 local before_hints = progress.lesson_status(state, track.id, track._ordered_lessons[2].id).hints
-progress.save(state)
 commands.hint()
 state = progress.load()
 check(progress.lesson_status(state, track.id, track._ordered_lessons[2].id).hints == before_hints, "Exam Mode blocks plugin hints")
-state.exam_active = false
-progress.save(state)
+commands.abandon()
+state = progress.load()
+check(state.tracks[track.id].lessons[track._ordered_lessons[2].id].abandoned_at == nil, "Exam Mode blocks reference-solution disclosure")
+commands.exam("stop")
+check(not table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n"):find("EXAM MODE ACTIVO", 1, true),
+  "stopping Exam Mode removes its active banner")
 
 -- The process adapter must respect a timeout and accept explicit cancellation.
 local slow_workspace = fs.join(temporary, "slow-workspace")
@@ -256,5 +422,5 @@ check(cancelled.cancelled == true, "running Cargo process can be cancelled")
 
 ui.close()
 fs.remove_tree(temporary)
-print("Forja tests passed: curriculum, graph, storage, mastery, AI validation, commands, UI, assessment gating, async runner, timeout and cancellation")
+print("Forja tests passed: curriculum, graph, storage, mastery, recall, commands, responsive UI, transfer isolation, assessment gating, async runner, timeout and cancellation")
 vim.cmd("qa!")
