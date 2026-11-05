@@ -84,7 +84,11 @@ local failed_after_hint = progress.record_attempt(later_state, track, first, {
 local later_unaided = progress.record_attempt(later_state, track, first, {
   passed = true, assessment = true,
 })
-check(failed_after_hint.independent == false and later_unaided.independent == true, "lifetime assistance stays recorded while a later unaided attempt can demonstrate independence")
+check(failed_after_hint.independent == false and later_unaided.independent == false,
+  "visible tests and retries do not erase assistance used in the same implementation workspace")
+progress.begin_clean_attempt(later_state, track.id, first.id, false, "/fresh/retrieval")
+local clean_retrieval = progress.record_attempt(later_state, track, first, { passed = true, assessment = true, workspace = "/fresh/retrieval" })
+check(clean_retrieval.independent == true, "a newly created clean retrieval workspace can demonstrate independence")
 local fresh_state = storage.default()
 local first_attempt = progress.record_attempt(fresh_state, track, first, {
   passed = true, assessment = true, hints = 0, ai_assistance = 0,
@@ -97,7 +101,12 @@ progress.add_hint(exam_state, track.id, first.id)
 local exam_attempt = progress.record_attempt(exam_state, track, first, {
   passed = true, assessment = true, hints = 0, ai_assistance = 0, exam = true,
 })
-check(exam_attempt.independent == true, "Exam Mode can establish independent evidence after prior assisted practice")
+check(exam_attempt.independent == false, "Exam counters cannot erase assistance from the existing implementation workspace")
+progress.begin_clean_attempt(exam_state, track.id, first.id, false, "/fresh/exam")
+local fresh_exam_attempt = progress.record_attempt(exam_state, track, first, {
+  passed = true, assessment = true, hints = 0, ai_assistance = 0, exam = true, workspace = "/fresh/exam",
+})
+check(fresh_exam_attempt.independent == true, "a fresh Exam Mode workspace can establish independent evidence after assisted practice")
 local transfer_hint_state = storage.default()
 progress.add_hint(transfer_hint_state, track.id, first.id, true)
 check(progress.lesson_status(transfer_hint_state, track.id, first.id).hints == 0
@@ -416,7 +425,8 @@ local function wait_for_process(timeout, cancel)
   return result
 end
 local timed = wait_for_process(1500, false)
-check(timed.code ~= 0, "Cargo process timeout ends with a nonzero result")
+check(timed.timed_out == true and (timed.code ~= 0 or timed.signal ~= nil),
+  "Cargo timeout is reported and terminated: " .. vim.inspect(timed))
 local cancelled = wait_for_process(30000, true)
 check(cancelled.cancelled == true, "running Cargo process can be cancelled")
 
