@@ -8,10 +8,11 @@ not unlock the next lesson; the assessment command must pass.
 
 Each of the first five lessons includes an objective, Spanish explanation,
 compact code example, retrieval questions, guided strategy, implementation
-requirements, and a transfer variation with an additional executable contract.
-Each Rust exercise includes visible examples, separately stored assessment
-assertions, and a verified reference solution. The learner writes code in a
-persistent workspace.
+requirements, and a transfer prompt. Rust includes separate runnable transfer
+contracts; Python, Java, and Go currently use written variations pending
+dedicated transfer workspaces. Every language exercise has visible tests,
+separately stored assessment tests, and a verified reference solution. The
+learner writes code in a persistent workspace.
 
 The workflow is:
 
@@ -23,9 +24,9 @@ The workflow is:
 5. Review assistance and result history with `:ForjaProgress`.
 6. Revisit a completed exercise using `:ForjaReview`, which creates a clean
    starter copy and hides the worked explanation, example, and strategy.
-7. Use `:ForjaPractice` to implement a dedicated transfer problem in a separate
-   workspace. Its test and assistance evidence is independent from the base
-   lesson and does not unlock curriculum progress.
+7. Use `:ForjaPractice` to implement a dedicated Rust transfer problem in a
+   separate workspace. Its test and assistance evidence is independent from the
+   base lesson and does not unlock curriculum progress.
 8. Use `:ForjaHistory` to reopen saved recall answers or resume an earlier
    review/transfer workspace without overwriting it.
 

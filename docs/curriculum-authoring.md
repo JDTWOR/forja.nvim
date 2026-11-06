@@ -6,27 +6,16 @@ static exercise projects; do not add executable Lua curriculum configuration.
 ## Track layout
 
 ```text
-courses/<language>/<track>.json
+courses/<language>/foundations.json
 courses/<language>/exercises/<exercise-id>/
   exercise.json
-  starter/
-    Cargo.toml
-    src/lib.rs
-    tests/public.rs
-  assessment.rs
-  solution.rs
-  transfer/
-    exercise.json
-    starter/
-      Cargo.toml
-      src/lib.rs
-      tests/public.rs
-    assessment.rs
-    solution.rs
+  starter/                 # language-specific source and public tests
+  assessment.*             # staged only into a temporary assessment copy
+  solution.*               # revealed only after explicit abandonment
 ```
 
-The current loader discovers `courses/*/foundations.json`. New built-in track
-files should use that filename until discovery is generalized.
+The loader discovers `courses/*/foundations.json` and selects a reviewed runner
+adapter from the exercise manifest.
 
 ## Curriculum schema version 1
 
@@ -66,30 +55,36 @@ Example exercise reference:
 ```
 
 All paths must be relative to the course directory and cannot contain `.` or
-`..` path components. The `exercise.json` file has `schema_version: 1`, matching
-exercise ID, supported runner `cargo-test`, Cargo package name, assessment and
-solution filenames, and a timeout between 1 and 120 seconds.
+`..` path components. Every `exercise.json` has `schema_version: 1`, the lesson
+ID, a supported runner, a package slug, source and public-test paths, assessment
+and solution filenames, and a timeout between 1 and 120 seconds. Current
+runner IDs and starter layouts are:
+
+| Language | Runner | Starter files | Manifest package |
+| --- | --- | --- | --- |
+| Rust | `cargo-test` | `Cargo.toml`, `src/lib.rs`, `tests/public.rs` | Cargo package name |
+| Python | `python-unittest` | `solution.py`, `tests/test_public.py` | module name `solution` |
+| Java | `java-main` | `Solution.java`, `PublicTests.java` | stable manifest slug; default Java package |
+| Go | `go-test` | `go.mod`, `solution.go`, `solution_test.go` | Go package `exercise` |
 
 ## Exercise quality and safety
 
-- Write the Spanish explanation and keep Rust identifiers/compiler messages in
-  English.
+- Write learner explanations in Spanish and keep identifiers, programming
+  terminology, and compiler messages in their original English names.
 - Give every task a learning objective, explicit constraints, examples, and
   boundary cases.
 - A transfer variation has a dedicated project under `variation_dir` with its
   own visible tests, hidden assessment, and reference solution. Its progress is
   recorded separately and does not unlock the base curriculum.
 - A variation must change what the learner reasons about, not just names.
-- Keep visible tests in `starter/tests/public.rs` so learners can inspect and run
-  them with `:ForjaRun`. Put assessment tests in `assessment.rs`; the runner
-  stages that file only in a temporary project copy and invokes its explicit
-  target with `:ForjaTest`, even if the learner Cargo manifest sets
-  `autotests = false`.
-- Keep the reference solution in `solution.rs`. It is never copied into the
-  ordinary workspace and is shown only after `:ForjaAbandon`; disclosure counts
-  as assistance for that active workspace attempt.
-- Use a dependency-free Cargo package where practical. Tests run with
-  `cargo test --offline`.
+- Keep public tests in the starter so learners can inspect and run them with
+  `:ForjaRun`. Put assessment tests and the reference solution beside
+  `exercise.json`; `:ForjaTest` stages only the assessment into a bounded,
+  temporary copy. The reference solution is not copied into the normal
+  workspace and is shown only after `:ForjaAbandon`.
+- Prefer standard-library-only exercises. Rust uses `cargo test --offline`,
+  Python uses `unittest`, Java compiles with `javac` and runs assertions with
+  `java -ea`, and Go runs `go test` with module downloads disabled.
 - Never put shell commands, Lua callbacks, or arbitrary runner arguments in a
   curriculum manifest. A new execution backend requires reviewed engine code.
 - Do not assume hidden tests are inaccessible to the local machine owner.
@@ -100,19 +95,18 @@ Verify content before accepting it:
 bash tests/run.sh
 ```
 
-The curriculum loader verifies that each starter contains a Cargo manifest and
-Rust source file, and checks that the Cargo package name matches the exercise
-manifest. `tests/verify_solutions.py` copies each starter to a temporary
-directory, swaps in its reference solution, stages assessment tests, and runs
-Cargo. This verifies the solution but does not test assessment fairness; review
-tests and rubrics too. The runtime assessment copy is bounded to 2000 filesystem
-entries and 16 MiB.
+The curriculum loader delegates starter validation to its reviewed adapter.
+Run `bash tests/run.sh`: each language verifier checks that a starter fails and
+its reference solution passes both public and assessment tests. This does not
+prove assessment fairness; review the tests and requirements too. Runtime
+assessment copies are bounded to 2000 filesystem entries and 16 MiB.
 
 ## Adding a language
 
-Keep language-specific runner behavior behind a runner adapter. Reuse the
-curriculum concepts and progress contract where appropriate; do not assume a
-Rust implementation proves mastery of an equivalent Java/Python/framework
-implementation. Diagnostic assessments can establish transfer separately. The
-current first phase supports only `cargo-test`; adding another runner changes
-engine code and tests, not the curriculum JSON interface.
+Keep language-specific runner behavior behind a reviewed adapter that returns
+argument arrays, never shell strings. Reuse concepts and progress evidence where
+appropriate, but do not assume a Rust implementation proves mastery of an
+equivalent Java, Python, Go, or framework implementation. Diagnostic
+assessments can establish transfer separately. New runners require adapter
+code, manifest validation, and tests; the curriculum and progress contracts
+remain language-neutral.

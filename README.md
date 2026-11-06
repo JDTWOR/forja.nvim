@@ -1,18 +1,19 @@
 # forja.nvim
 
 `forja.nvim` is a local-first programming practice plugin. It gives you a
-structured curriculum, editable starter projects, deterministic Rust tests, and
-progress evidence inside Neovim. It is designed to make the learner do the
-implementation. AI is optional and the first slice works offline.
+structured curriculum, editable starter projects, deterministic language tests,
+and progress evidence inside Neovim. It is designed to make the learner do the
+implementation. AI is optional and the courses work offline.
 
 ## Phase 1 status
 
-The current working track is **Rust Fundamentals**. It contains five Spanish
-lessons: variables and mutability, scalar types, control flow, functions, and
-ownership/borrowing. Each lesson includes a transfer variation, visible tests,
-assessment tests, and a verified reference solution. Lessons unlock only after
-the assessment passes. Hints and tutor use are recorded separately from test
-correctness.
+Forja currently includes four foundations tracks with five Spanish lessons
+each: Rust, Python, Java, and Go. All twenty lessons have editable starter code,
+visible tests, a separate assessment, and a reference solution verified against
+the tests. Rust also has runnable transfer projects for all five lessons; the
+other tracks include written variations, with separate runnable transfer
+projects planned. Lessons unlock only after their assessment passes. Hints and
+tutor use are recorded separately from test correctness.
 
 There is no shipped HTTP AI provider or spaced-repetition scheduler yet. The
 offline tutor uses a fixed Socratic question; `:ForjaReview` creates a clean
@@ -22,20 +23,24 @@ review and licensing decisions.
 
 ## Requirements
 
-- Neovim 0.10 or newer on Linux/macOS, with `/bin/sh` for the fixed runner
-  wrapper. The development environment used Neovim 0.12.6.
-- `rustc` and `cargo` for the Rust track. Tests run with `cargo test --offline`.
-- Python 3 only to run the optional reference-solution verification script.
+- Neovim 0.10 or newer on Linux/macOS. The development environment used Neovim 0.12.6.
+- Install the toolchain for each track you want to use:
+  - Rust: `rustc` and `cargo` (`cargo test --offline`).
+  - Python: `python3` (standard-library `unittest`).
+  - Java: JDK 11+ (`javac` and `java`; standard library only).
+  - Go: Go 1.21+ (standard library only; module network access is disabled).
+- Python 3 is also used by the optional solution verification scripts.
 - lazy.nvim is recommended; there are no required Neovim plugin dependencies.
 
 On Arch Linux/CachyOS:
 
 ```sh
-sudo pacman -S neovim rust
+sudo pacman -S neovim python rust jdk-openjdk go
 ```
 
-The Arch `rust` package includes `rustc` and Cargo. A language server is not
-required by Forja; install `rust-analyzer` separately if you want Rust LSP
+The Arch `rust` package includes `rustc` and Cargo. The JDK provides both
+`javac` and `java`. Language servers are not required by Forja; install
+`rust-analyzer`, `pyright`, `jdtls`, or `gopls` separately if you want LSP
 features in your editor.
 
 ## Install with LazyVim
@@ -74,13 +79,15 @@ opts = { keymaps = { enabled = true, prefix = "<leader>F" } }
 
 ## First lesson walkthrough
 
-1. Run `:Forja` and press `s`, or run `:ForjaStart rust-foundations`.
-2. Read the lesson beside the opened `src/lib.rs` buffer on wide terminals. On
+1. Run `:Forja` and press `s`, or start a track directly:
+   `:ForjaStart rust-foundations`, `:ForjaStart python-foundations`,
+   `:ForjaStart java-foundations`, or `:ForjaStart go-foundations`.
+2. Read the lesson beside the opened source buffer on wide terminals. On
    narrow terminals, the focused lesson view has `q`/`Esc` to return to code.
    `:ForjaClose` works from either pane. The workspace is under
    `stdpath("data")/forja/workspaces/`.
-3. Run `:ForjaTrustLocal` once for this exercise and confirm the prompt. Rust
-   builds and tests execute local code with your user permissions.
+3. Run `:ForjaTrustLocal` once for this exercise and confirm the prompt. The
+   selected language toolchain executes local code with your user permissions.
 4. Run `:ForjaRun` for visible tests and compiler output. If the buffer has
    unsaved changes, Forja asks whether to save and run or cancel. Fix your
    implementation and run it again as needed.
@@ -107,7 +114,8 @@ saved evidence. Approve its local Cargo run separately with
 copies stay under `forja/reviews/`. Use `:ForjaHistory` to review saved answers
 or resume one of those workspaces. Resumed workspaces preserve their files but
 cannot establish new independent mastery; start a newly created review or exam
-workspace for that.
+workspace for that. Dedicated runnable transfer workspaces currently exist for
+the Rust lessons; Python, Java, and Go have written variation prompts.
 
 `:ForjaExam` starts a fresh workspace and hides the worked explanation, example,
 and guided strategy. Forja disables its hints and tutor until `:ForjaExam stop`,
@@ -126,7 +134,7 @@ Exam Mode only controls features inside Forja.
 | `:ForjaTracks` | Browse installed tracks. |
 | `:ForjaLesson [lesson-id]` | Open the current or a prerequisite-eligible lesson. |
 | `:ForjaNext` | Open the next lesson after assessment completion. |
-| `:ForjaRun` | Run visible Cargo tests asynchronously. |
+| `:ForjaRun` | Run visible tests with the selected language toolchain asynchronously. |
 | `:ForjaTest` | Run the hidden assessment target in a temporary copy; `:ForjaRun` runs visible tests. |
 | `:ForjaTrustLocal` | Explicitly approve local code execution for this exercise. |
 | `:ForjaCancel` | Request cancellation of the active Forja process. |
@@ -139,7 +147,7 @@ Exam Mode only controls features inside Forja.
 | `:ForjaExam [stop]` | Start/stop a clean independent attempt; Forja hints and tutor are disabled while active. |
 | `:ForjaAbandon` | Explicitly abandon and display the reference solution without changing learner code. |
 | `:ForjaProgress` | Show lesson evidence, attempts, hints, and tutor assistance. |
-| `:ForjaHealth` | Check Neovim APIs, Cargo, curriculum parsing, and progress storage. |
+| `:ForjaHealth` | Check Neovim APIs, installed course toolchains, curriculum parsing, and progress storage. |
 | `:ForjaExport [path]` | Export the versioned progress JSON. With no path, prompts for one. |
 
 ## AI provider configuration
@@ -196,29 +204,35 @@ invalid runner manifests.
 
 ## Testing the plugin
 
-Run the headless Neovim domain/end-to-end tests and verify every reference
-solution with authentic Cargo tests:
+Run the headless Neovim domain/end-to-end tests and verify reference solutions
+with the corresponding language toolchains:
 
 ```sh
 bash tests/run.sh
 ```
 
+The complete suite requires Rust/Cargo, Python 3, a JDK, and Go. To use Forja
+without one of those toolchains, install only the runtimes for tracks you plan
+to study; the plugin itself does not require the other compilers.
+
 The suite uses no Plenary or other Neovim test dependency. It covers graph
 validation, migrations, persistence, sticky assistance accounting, clean
 retrieval and exam gating, saved history and session restoration, restricted
 recall/review views, responsive UI cleanup and resize, assessment gating,
-unsaved-buffer safety, separate transfer workspaces, mandatory hidden targets,
+unsaved-buffer safety, separate transfer workspaces, mandatory hidden assessments,
 workspace staging limits, process-group cancellation, and a total execution
-deadline. It also checks that all ten clean starters compile without warnings
-and verifies every reference solution against visible and assessment tests.
+deadline. It checks that ten Rust starters compile without warnings and verifies
+all twenty foundation reference solutions against visible and assessment tests.
 
 ## Security limits
 
-Forja asks before running local Rust code. After approval, Cargo can run build
-scripts, procedural macros, and learner tests with your account's permissions.
-`--offline` avoids dependency downloads; it does not sandbox the process. The
-assessment copy excludes `.git` and `target`, is limited to 2000 filesystem
-entries and 16 MiB, and runs the explicit hidden test target under one deadline.
+Forja asks before running local code. After approval, compilers and test
+runners execute with your account's permissions. The assessment copy excludes
+`.git` and Rust's `target`, is limited to 2000 filesystem entries and 16 MiB,
+and runs hidden tests in a temporary copy under one deadline. Java class files
+are written to a temporary directory and removed after the run. Go module
+downloads are disabled for Forja exercises.
+`--offline` avoids Rust dependency downloads; it does not sandbox the process.
 Cancellation and timeout kill the child process group on Linux/macOS. A process
 that deliberately escapes that group is outside this control. The machine owner
 can inspect repository files or change tests. Exam Mode only disables assistance

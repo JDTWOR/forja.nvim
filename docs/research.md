@@ -109,14 +109,14 @@ Source: [repository](https://github.com/nvim-neotest/neotest/tree/27bf921), [arc
    adapter for each test framework.
 3. **Dependencies and compatibility:** the README requires `nvim-nio`; language
    adapters can add Tree-sitter/runtime dependencies. The inspected README does
-   not state one definitive Neovim minimum. Forja's first runner invokes Cargo
-   directly and has no Neotest dependency.
+   not state one definitive Neovim minimum. Forja's language adapters use the
+   built-in `vim.system` API and have no Neotest dependency.
 4. **Conceptual reuse:** isolate runner behavior from lesson logic; use async
    process results as evidence; keep language-specific test protocols in
    adapters.
-5. **Independent implementation:** Forja's initial fixed `cargo test --offline`
-   runner is small, argument-array based, and owns only its temporary assessment
-   copy. A runner interface can be generalized when another language is added.
+5. **Independent implementation:** Forja keeps a small runner coordinator and
+   reviewed Rust, Python, Java, and Go adapters. They use argument arrays and
+   own bounded temporary assessment copies; Neotest is not required.
 6. **Integration risks:** adopting Neotest would add a required dependency and
    adapter maintenance before Forja needs multi-runner support. Its adapters and
    parser outputs must not be treated as authoritative mastery by themselves.
@@ -179,9 +179,9 @@ Source: [repository](https://github.com/szymonwilczek/vim-be-better/tree/60e0214
    code is reused.
 4. **Conceptual reuse:** practice should be a short action in the editor, with a
    clear objective and immediate feedback rather than a passive dashboard.
-5. **Independent implementation:** Forja lesson exercises are Cargo projects
-   with explicit input/output contracts and deterministic tests, not movement
-   mini-games.
+5. **Independent implementation:** Forja lessons use declarative per-language
+   exercise projects with explicit contracts and deterministic tests, not
+   movement mini-games.
 6. **Integration risks:** a missing root license makes code reuse ambiguous; its
    game/statistics model does not prove programming-language mastery.
 

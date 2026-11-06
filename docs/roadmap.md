@@ -3,7 +3,8 @@
 ## Phase 1 — complete in this repository
 
 - Native dashboard and commands; Lazy.nvim setup.
-- Validated JSON curriculum graph and five Spanish Rust lessons.
+- Validated JSON curriculum graph and twenty Spanish foundation lessons across
+  Rust, Python, Java, and Go, backed by reviewed language runner adapters.
 - Persistent learner workspaces, visible tests, isolated local assessment copy,
   verified reference solutions and progress gates.
 - JSON progress persistence, backups, migrations, hints, local Exam Mode,
@@ -11,8 +12,8 @@
   transfer projects for each Rust lesson. Clean review/exam sessions preserve
   assistance evidence, old workspaces are resumable but uncertified, and saved
   recall answers are available through `:ForjaHistory`.
-- Mandatory hidden Cargo assessment targets, bounded staging, process-group
-  cancellation and a total runner deadline for the Rust execution backend.
+- Mandatory hidden assessments, bounded staging, process-group cancellation,
+  and one total deadline across the Rust, Python, Java, and Go execution backends.
 - Headless domain/end-to-end tests and solution verification.
 
 ## Phase 2 — provider-backed tutor
@@ -44,8 +45,8 @@
 
 ## Phase 5 — broader curricula
 
-- Language-specific runner packages for Java, Python, PHP, Go, JavaScript and
-  TypeScript.
+- Additional language runners for PHP, JavaScript, and TypeScript; the initial
+  Java, Python, and Go runners are implemented.
 - Shared concept DAGs and framework-specific tracks for backend, databases,
   frontend, architecture, testing, security, performance and deployment.
 - Diagnostic placement that requires deterministic prerequisite evidence.
@@ -57,4 +58,5 @@
 2. Choose a vetted FSRS library and write an adapter test suite before shipping
    scheduled reviews.
 3. Add independent assessments for module projects and concept transfer.
-4. Add multi-language runners without changing the curriculum/progress contract.
+4. Add runnable transfer projects to the Python, Java, and Go tracks without
+   changing the curriculum/progress contract.
