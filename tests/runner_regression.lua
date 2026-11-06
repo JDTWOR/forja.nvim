@@ -4,7 +4,7 @@ local runner = require("forja.runner.process")
 local function check(value, message) if not value then error(message) end end
 local root = vim.fn.tempname()
 fs.ensure_dir(root)
-local track = assert(require("forja.core.curriculum").list())[1]
+local track = assert(require("forja.core.curriculum").get("rust-foundations"))
 local lesson = track._ordered_lessons[1]
 local workspace = fs.join(root, "exercise")
 fs.ensure_dir(fs.join(workspace, "src"))

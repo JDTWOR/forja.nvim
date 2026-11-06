@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "id": "java-foundations",
+  "version": "1.0.0",
+  "title": "Fundamentos de Java",
+  "description": "Tipos primitivos, control de flujo, métodos, collections y encapsulation con ejercicios verificables en el JDK estándar.",
+  "language": "java",
+  "modules": [
+    {
+      "id": "java-basics",
+      "title": "Fundamentos del lenguaje Java"
+    },
+    {
+      "id": "java-collections",
+      "title": "Arrays y collections"
+    },
+    {
+      "id": "java-objects",
+      "title": "Clases y encapsulation"
+    }
+  ],
+  "lessons": [
+    {
+      "id": "variables-primitives",
+      "module": "java-basics",
+      "title": "Variables y tipos primitivos",
+      "objective": "Representar cantidades monetarias en centavos y actualizar valores con tipos primitivos y bindings locales claros.",
+      "concepts": [
+        "java.variables",
+        "java.primitive-types",
+        "java.integer-arithmetic",
+        "java.final"
+      ],
+      "prerequisites": [],
+      "explanation": "En Java cada variable tiene un tipo declarado. `int` sirve para enteros de 32 bits y `long` amplía el rango; el sufijo `L` hace explícito un literal `long`. Una variable local debe inicializarse antes de leerse. `final` impide reasignar el binding, aunque no vuelve inmutable un objeto referenciado. Para dinero conviene usar centavos enteros y decidir explícitamente cuándo se trunca la división.",
+      "example": "int subtotalCents = 1_099;\nfinal int discountPercent = 10;\nlong discountCents = (long) subtotalCents * discountPercent / 100;\nint discounted = subtotalCents - (int) discountCents;",
+      "questions": [
+        "¿Por qué el cast a `long` debe ocurrir antes de multiplicar?",
+        "¿Qué protege `final` en un binding local y qué no protege en un objeto?"
+      ],
+      "guided": "Anota el tipo y rango de cada entrada. Escribe cada etapa monetaria como una variable distinta y observa en qué operación la división entera descarta centavos.",
+      "requirements": [
+        "Implementa `addFee(int, int)` para sumar dos importes no negativos expresados en centavos.",
+        "Implementa `discountThenTax`: descuenta primero y calcula el impuesto sobre el resultado; cada porcentaje se trunca a centavos.",
+        "Implementa `taxThenDiscount` con el orden opuesto y conserva la misma regla de truncamiento. Las entradas cumplen subtotal entre 0 y 1_000_000_000 y porcentajes entre 0 y 100."
+      ],
+      "variation": "Modela un precio de inventario que recibe una tarifa fija, un descuento y un impuesto. Compara los totales cuando la tarifa se incorpora antes o después del porcentaje.",
+      "hints": [
+        "Expresa todos los importes en centavos para evitar `double` en esta tarea.",
+        "¿Qué tipo representa los porcentajes y qué rango tienen?",
+        "El porcentaje requiere una multiplicación antes de dividir entre 100.",
+        "La multiplicación debe ampliarse a `long` antes de ejecutarse para evitar overflow intermedio.",
+        "Separa descuento e impuesto en variables locales para hacer visible el orden.",
+        "Calcula el descuento con `(long) subtotal * rate / 100`; el orden distinto puede cambiar un centavo por truncamiento."
+      ],
+      "exercise": {
+        "project_dir": "exercises/variables-primitives",
+        "starter_dir": "starter",
+        "assessment_file": "ForjaAssessment.java",
+        "solution_file": "Solution.java"
+      }
+    },
+    {
+      "id": "control-flow",
+      "module": "java-basics",
+      "title": "Control de flujo",
+      "objective": "Traducir reglas de negocio a ramas exhaustivas y ordenar condiciones para cubrir correctamente límites y entradas inválidas.",
+      "concepts": [
+        "java.if-else",
+        "java.switch",
+        "java.boundaries",
+        "java.validation"
+      ],
+      "prerequisites": [
+        "variables-primitives"
+      ],
+      "explanation": "Java ejecuta un bloque según condiciones booleanas. Una cadena `if/else if/else` expresa rangos ordenados; las condiciones se evalúan de arriba abajo, por eso un límite incluido en la primera rama ya no llega a las siguientes. `switch` resulta útil cuando se compara un valor discreto. Valida los valores fuera del dominio antes de aplicar las reglas normales.",
+      "example": "if (score < 0 || score > 100) {\n    return \"invalid\";\n}\nif (score >= 90) {\n    return \"excellent\";\n} else if (score >= 60) {\n    return \"passing\";\n}\nreturn \"retry\";",
+      "questions": [
+        "¿Qué salida debe producir exactamente un score de 90?",
+        "¿Por qué conviene validar el rango antes de clasificar el score?"
+      ],
+      "guided": "Haz una tabla con el valor anterior, el propio límite y el siguiente valor de cada rango. Después ordena las condiciones desde el umbral mayor.",
+      "requirements": [
+        "Implementa `shippingCost`: hasta 500 gramos cuesta 500 centavos; hasta 2000 cuesta 1200; más pesa 2500. Express agrega 700. Un peso negativo devuelve -1.",
+        "Implementa `scoreLabel(int)` para 0..100: 90+ `excellent`, 60..89 `passing`, 0..59 `retry`, fuera del rango `invalid`.",
+        "Implementa `scoreLabelOrMissing(Integer)`: `null` devuelve `missing`; los demás valores respetan las mismas bandas."
+      ],
+      "variation": "Clasifica la latencia de una API en `fast` (0..50), `normal` (51..200), `slow` (201 en adelante) o `invalid` para valores negativos.",
+      "hints": [
+        "Enumera las salidas posibles antes de escribir condiciones.",
+        "¿Qué debe pasar con valores negativos o mayores que 100?",
+        "Comprueba primero las condiciones de mayor prioridad y no dejes huecos en los rangos.",
+        "El costo depende de tres rangos de peso y después de un ajuste express.",
+        "En `scoreLabelOrMissing`, resuelve `null` antes de comparar el valor.",
+        "Evalúa `score >= 90` antes que `score >= 60`; clasifica valores fuera de 0..100 como inválidos."
+      ],
+      "exercise": {
+        "project_dir": "exercises/control-flow",
+        "starter_dir": "starter",
+        "assessment_file": "ForjaAssessment.java",
+        "solution_file": "Solution.java"
+      }
+    },
+    {
+      "id": "methods",
+      "module": "java-basics",
+      "title": "Métodos y composición",
+      "objective": "Definir contratos de métodos pequeños, validar entradas y componer cálculos sin duplicar reglas.",
+      "concepts": [
+        "java.methods",
+        "java.parameters",
+        "java.return-values",
+        "java.method-composition"
+      ],
+      "prerequisites": [
+        "control-flow"
+      ],
+      "explanation": "Un método Java declara tipo de retorno, nombre y parámetros. El contrato debe aclarar el dominio de entrada y qué significa cada salida especial. Los métodos `static` se invocan desde la clase sin crear un objeto. Extraer un cálculo con un nombre preciso reduce duplicación; el método que lo compone sigue el orden definido por el problema.",
+      "example": "static int applyTax(int cents, int ratePercent) {\n    long tax = (long) cents * ratePercent / 100;\n    return Math.toIntExact(cents + tax);\n}\n\nstatic int total(int subtotal, int rate) {\n    return applyTax(subtotal, rate);\n}",
+      "questions": [
+        "¿Qué documenta el tipo de retorno de un método?",
+        "¿Por qué la conversión a `long` ocurre antes de multiplicar?"
+      ],
+      "guided": "Escribe primero la precondición y el resultado inválido. Después divide la solución en cálculos que puedas probar por separado.",
+      "requirements": [
+        "Implementa `percentageOf` para cantidades no negativas y tasas de 0..100; usa aritmética amplia antes de dividir.",
+        "Implementa `checkoutTotal`: descuento primero, luego impuesto calculado sobre el importe descontado; las operaciones se truncan a centavos.",
+        "Implementa `readingMinutes`: redondea hacia arriba. Devuelve -1 para palabras negativas o ritmo menor o igual a cero."
+      ],
+      "variation": "Calcula cuántas cajas se necesitan para empacar artículos, redondeando hacia arriba y rechazando un tamaño de caja igual a cero.",
+      "hints": [
+        "Escribe las entradas, la salida y el significado del caso inválido.",
+        "Una función auxiliar puede calcular el descuento antes de aplicar el impuesto.",
+        "Reutiliza el resultado del primer paso para que el orden quede explícito.",
+        "Para redondear una división positiva hacia arriba, usa cociente y residuo.",
+        "Evita `(words + rate - 1) / rate` porque la suma podría desbordarse.",
+        "La fórmula segura es `words / rate + (words % rate == 0 ? 0 : 1)`."
+      ],
+      "exercise": {
+        "project_dir": "exercises/methods",
+        "starter_dir": "starter",
+        "assessment_file": "ForjaAssessment.java",
+        "solution_file": "Solution.java"
+      }
+    },
+    {
+      "id": "arrays-collections",
+      "module": "java-collections",
+      "title": "Arrays y collections",
+      "objective": "Procesar arrays y elegir collections de Java según las operaciones requeridas, preservando orden y reglas de igualdad.",
+      "concepts": [
+        "java.arrays",
+        "java.generics",
+        "java.list",
+        "java.map",
+        "java.set"
+      ],
+      "prerequisites": [
+        "methods"
+      ],
+      "explanation": "Un array tiene longitud fija y almacena valores de un mismo tipo. `List<T>` modela una secuencia redimensionable; `Set<T>` representa elementos únicos y `Map<K,V>` relaciona claves con valores. Los generics conservan información de tipos durante la compilación. `LinkedHashSet` mantiene orden de inserción, mientras que `HashMap` sirve para acumular conteos sin depender del orden de iteración.",
+      "example": "Set<String> unique = new LinkedHashSet<>();\nfor (String value : values) {\n    if (value != null) unique.add(value);\n}\nList<String> result = new ArrayList<>(unique);",
+      "questions": [
+        "¿Qué diferencia práctica tiene `List` frente a un array?",
+        "¿Qué garantiza `LinkedHashSet` que `HashSet` no garantiza?"
+      ],
+      "guided": "Para cada función decide si el problema necesita índices, orden repetible, unicidad o búsqueda por clave. Escoge la colección después de nombrar esa operación.",
+      "requirements": [
+        "Implementa `sum(int[])` como una suma `long`; `null` produce 0.",
+        "Implementa `uniqueInOrder(List<String>)`: conserva la primera aparición de cada string, ignora elementos null y devuelve una lista nueva; una lista null produce una lista vacía.",
+        "Implementa `wordCounts(List<String>)`: cuenta cada string exacto, ignora elementos null y devuelve un `Map`; el orden del mapa no importa."
+      ],
+      "variation": "Procesa códigos de productos de un lote: elimina duplicados conservando el orden original y calcula cuántas veces aparece cada código.",
+      "hints": [
+        "Separa mentalmente los casos array, unicidad y conteo.",
+        "Un acumulador `long` conserva la suma aunque exceda `int`.",
+        "Para preservar el orden y descartar duplicados, identifica un `Set` que mantenga inserción.",
+        "Para conteos, el estado necesario es una asociación string → entero.",
+        "La función debe crear colecciones nuevas, no modificar las recibidas.",
+        "Usa `new LinkedHashSet<>()` para la lista única y `Map.merge(word, 1, Integer::sum)` para contar."
+      ],
+      "exercise": {
+        "project_dir": "exercises/arrays-collections",
+        "starter_dir": "starter",
+        "assessment_file": "ForjaAssessment.java",
+        "solution_file": "Solution.java"
+      }
+    },
+    {
+      "id": "classes-encapsulation",
+      "module": "java-objects",
+      "title": "Classes y encapsulation",
+      "objective": "Encapsular estado mutable detrás de métodos con invariantes explícitas y resultados verificables.",
+      "concepts": [
+        "java.classes",
+        "java.encapsulation",
+        "java.invariants",
+        "java.constructors"
+      ],
+      "prerequisites": [
+        "arrays-collections"
+      ],
+      "explanation": "Una clase agrupa estado y comportamiento. `private` evita que el código externo cambie directamente los campos, y los métodos públicos forman la API. El constructor establece el estado inicial; cada mutación debe mantener los invariantes. `final` puede fijar la referencia del owner, mientras que el balance sigue cambiando a través de operaciones validadas.",
+      "example": "static final class Wallet {\n    private final String owner;\n    private int balanceCents;\n\n    Wallet(String owner, int initialCents) {\n        this.owner = owner;\n        this.balanceCents = initialCents;\n    }\n}",
+      "questions": [
+        "¿Por qué un campo `private` reduce estados inválidos?",
+        "¿Qué diferencia hay entre hacer `final` un campo y hacer inmutable al objeto?"
+      ],
+      "guided": "Escribe los invariantes antes de implementar: balance nunca negativo, owner no cambia y operaciones inválidas no modifican el estado.",
+      "requirements": [
+        "Implementa `Solution.Wallet` con owner no vacío y balance inicial no negativo; constructor inválido lanza `IllegalArgumentException`.",
+        "Expón `owner()` y `balanceCents()` sin hacer públicos los campos.",
+        "`deposit` y `withdraw` devuelven false para cantidades no positivas, balance insuficiente o overflow; en esos casos no cambian el balance. Operaciones válidas devuelven true."
+      ],
+      "variation": "Modela un cupo de inventario con una cantidad reservada. Las operaciones deben impedir reservas superiores al stock y permitir liberar solo unidades que estén reservadas.",
+      "hints": [
+        "Anota los invariantes que deben permanecer ciertos después de cada método.",
+        "Los campos deben ser `private`; la mutación ocurre desde métodos de la clase.",
+        "El owner no cambia, así que su referencia puede ser `final`.",
+        "Valida los argumentos antes de modificar el balance.",
+        "Para evitar overflow en depósitos, compara contra `Integer.MAX_VALUE - balance` antes de sumar.",
+        "`deposit` y `withdraw` deben retornar false sin tocar el estado ante cantidades inválidas o límites excedidos."
+      ],
+      "exercise": {
+        "project_dir": "exercises/classes-encapsulation",
+        "starter_dir": "starter",
+        "assessment_file": "ForjaAssessment.java",
+        "solution_file": "Solution.java"
+      }
+    }
+  ]
+}

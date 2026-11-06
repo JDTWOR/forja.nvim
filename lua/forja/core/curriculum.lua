@@ -1,5 +1,6 @@
 local fs = require("forja.util.fs")
 local graph = require("forja.core.graph")
+local adapters = require("forja.runner.adapters")
 local M = {}
 
 local function plugin_root()
@@ -14,6 +15,7 @@ local function decode(path)
   if not ok then return nil, "invalid curriculum JSON at " .. path .. ": " .. tostring(result) end
   local sorted, validation_err = graph.validate(result)
   if not sorted then return nil, validation_err end
+  for _, lesson in ipairs(sorted) do lesson.language = result.language end
   local track_dir = vim.fn.fnamemodify(path, ":h")
   for _, lesson in ipairs(sorted) do
     local exercise = lesson.exercise
@@ -29,11 +31,11 @@ local function decode(path)
     if not valid or type(manifest) ~= "table" or manifest.schema_version ~= 1 then
       return nil, "invalid exercise manifest for " .. lesson.id
     end
-    if manifest.id ~= lesson.id or manifest.runner ~= "cargo-test" then
+    if manifest.id ~= lesson.id or not adapters.get(manifest.runner) then
       return nil, "exercise manifest identity or runner mismatch for " .. lesson.id
     end
     if type(manifest.package) ~= "string" or not manifest.package:match("^[a-z][a-z0-9_]*$") then
-      return nil, "exercise manifest has an invalid Cargo package for " .. lesson.id
+      return nil, "exercise manifest has an invalid package for " .. lesson.id
     end
     if type(manifest.timeout_ms) ~= "number" or manifest.timeout_ms < 1000 or manifest.timeout_ms > 120000 then
       return nil, "exercise manifest has an invalid timeout for " .. lesson.id
@@ -47,17 +49,19 @@ local function decode(path)
     end
     lesson.exercise._manifest = manifest
     lesson.exercise._dir = fs.join(track_dir, exercise.project_dir)
-    local starter_ok, starter_err = require("forja.util.cargo").validate_starter(
-      fs.join(lesson.exercise._dir, exercise.starter_dir), manifest.package)
+    local starter_ok, starter_err = adapters.validate_starter(manifest.runner,
+      fs.join(lesson.exercise._dir, exercise.starter_dir), manifest)
     if not starter_ok then return nil, lesson.id .. ": " .. starter_err end
     if exercise.variation_dir then
+      if not fs.safe_relative(exercise.variation_dir) then return nil, lesson.id .. " has an unsafe variation_dir" end
       local variation_root = fs.join(lesson.exercise._dir, exercise.variation_dir)
       local variation_text = fs.read(fs.join(variation_root, "exercise.json"))
       local variation_ok, variation_manifest = pcall(vim.json.decode, variation_text or "")
       if not variation_ok or type(variation_manifest) ~= "table"
         or variation_manifest.schema_version ~= 1
         or variation_manifest.id ~= lesson.id
-        or variation_manifest.runner ~= "cargo-test"
+        or variation_manifest.runner ~= manifest.runner
+        or not adapters.get(variation_manifest.runner)
         or type(variation_manifest.package) ~= "string"
         or not variation_manifest.package:match("^[a-z][a-z0-9_]*$")
         or type(variation_manifest.timeout_ms) ~= "number"
@@ -68,14 +72,14 @@ local function decode(path)
       end
       if not fs.read(fs.join(variation_root, variation_manifest.assessment_file))
         or not fs.read(fs.join(variation_root, variation_manifest.solution_file))
-        or not fs.read(fs.join(variation_root, "starter/Cargo.toml"))
-        or not fs.read(fs.join(variation_root, "starter/src/lib.rs")) then
+        or not fs.safe_relative(variation_manifest.assessment_file)
+        or not fs.safe_relative(variation_manifest.solution_file) then
         return nil, "transfer exercise files are missing for " .. lesson.id
       end
       lesson.exercise._variation_dir = variation_root
       lesson.exercise._variation_manifest = variation_manifest
-      local transfer_ok, transfer_err = require("forja.util.cargo").validate_starter(
-        fs.join(variation_root, "starter"), variation_manifest.package)
+      local transfer_ok, transfer_err = adapters.validate_starter(variation_manifest.runner,
+        fs.join(variation_root, "starter"), variation_manifest)
       if not transfer_ok then return nil, lesson.id .. " transfer: " .. transfer_err end
     end
   end

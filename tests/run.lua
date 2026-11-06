@@ -23,11 +23,24 @@ config.setup({ data_dir = temporary, runner = { timeout_ms = 30000 } })
 
 local tracks, curriculum_err = curriculum.list()
 check(tracks ~= nil, curriculum_err or "curriculum list failed")
-check(#tracks == 1 and #tracks[1]._ordered_lessons == 5, "five real lessons load")
-local track = tracks[1]
+check(#tracks == 4, "Rust, Python, Java, and Go learning tracks load")
+local track_by_id = {}
+for _, loaded_track in ipairs(tracks) do
+  track_by_id[loaded_track.id] = loaded_track
+  check(#loaded_track._ordered_lessons == 5, loaded_track.id .. " has five real lessons")
+end
+local track = assert(track_by_id["rust-foundations"], "Rust foundations track loads")
 for _, item in ipairs(track._ordered_lessons) do
   check(item.exercise._variation_dir ~= nil and item.exercise._variation_manifest ~= nil,
     "each Rust lesson has a validated independent transfer project")
+end
+for _, id in ipairs({ "python-foundations", "java-foundations", "go-foundations" }) do
+  local loaded_track = assert(track_by_id[id], id .. " is discoverable")
+  for _, item in ipairs(loaded_track._ordered_lessons) do
+    check(item.exercise._manifest and item.exercise._manifest.runner ~= "cargo-test",
+      id .. " lesson has a language-specific executable exercise")
+    check(item.language == loaded_track.language, id .. " carries language metadata into lesson views")
+  end
 end
 
 local function graph_lesson(id, prerequisite)
@@ -309,10 +322,10 @@ vim.env.PATH = ""
 ui.last_result = nil
 vim.api.nvim_cmd({ cmd = "ForjaRun" }, {})
 local missing_cargo_reported = vim.wait(10000, function()
-  return ui.last_result and ui.last_result.title == "Cargo no disponible"
+  return ui.last_result and ui.last_result.title == "Falta una herramienta"
 end, 20)
 vim.env.PATH = original_path
-check(missing_cargo_reported, "missing Cargo produces actionable execution guidance")
+check(missing_cargo_reported, "missing language toolchain produces actionable execution guidance")
 state = progress.load()
 check(#state.tracks[track.id].lessons[lesson.id].attempts == attempts_before_missing_cargo,
   "missing Cargo is not counted as a learner attempt")

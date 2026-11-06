@@ -3,7 +3,7 @@ vim.opt.runtimepath:prepend(vim.fn.getcwd())
 local ui = require('forja.ui')
 local lesson_ui = require('forja.ui.lesson')
 local curriculum = require('forja.core.curriculum')
-local lesson = assert(curriculum.list())[1]._ordered_lessons[1]
+local lesson = assert(curriculum.get('rust-foundations'))._ordered_lessons[1]
 local function check(value, message) assert(value, message) end
 for _, mode in ipairs({ 'review', 'recall', 'exam' }) do
   lesson_ui.render(lesson, nil, mode, mode == 'exam')

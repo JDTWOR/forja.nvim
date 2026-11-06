@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "variables-primitives",
+  "runner": "java-main",
+  "package": "forja_java_variables_primitives",
+  "source_file": "Solution.java",
+  "public_test_file": "PublicTests.java",
+  "assessment_file": "ForjaAssessment.java",
+  "solution_file": "Solution.java",
+  "timeout_ms": 30000
+}

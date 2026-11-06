@@ -51,8 +51,13 @@ function M.trust(state, track, lesson, variation)
   state.trusted_exercises[key] = true
 end
 
-function M.source_file(path)
-  local candidates = { "src/lib.rs", "src/main.rs" }
+function M.source_file(path, exercise)
+  local candidates = {}
+  local manifest = exercise and exercise._manifest
+  if manifest and manifest.source_file and fs.safe_relative(manifest.source_file) then
+    table.insert(candidates, manifest.source_file)
+  end
+  vim.list_extend(candidates, { "src/lib.rs", "src/main.rs", "solution.py", "Solution.java", "solution.go" })
   for _, relative in ipairs(candidates) do
     local candidate = fs.join(path, relative)
     if vim.uv.fs_stat(candidate) then return candidate end

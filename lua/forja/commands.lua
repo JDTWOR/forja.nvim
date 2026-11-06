@@ -23,7 +23,11 @@ local concept_labels = {
 
 local function concept_text(concepts)
   local labels = {}
-  for _, concept in ipairs(concepts or {}) do table.insert(labels, concept_labels[concept] or concept) end
+  for _, concept in ipairs(concepts or {}) do
+    local label = concept_labels[concept]
+    if not label then label = concept:gsub("^[^.]+%.", ""):gsub("[%.%-]", " ") end
+    table.insert(labels, label)
+  end
   return table.concat(labels, ", ")
 end
 
@@ -46,7 +50,7 @@ local function load_state()
       local stat = type(saved.path) == "string" and vim.uv.fs_lstat(saved.path) or nil
       local track = curriculum.get(saved.track_id)
       local lesson = track and curriculum.lesson(track, saved.lesson_id)
-      local source = path and workspace.source_file(path)
+      local source = path and lesson and workspace.source_file(path, lesson.exercise)
       local source_stat = source and vim.uv.fs_lstat(source)
       local source_real = source and vim.uv.fs_realpath(source)
       local transfer_path = path and vim.fn.fnamemodify(path, ":t"):match("^transfer%-") ~= nil
@@ -127,8 +131,8 @@ local function open_lesson(state, track, lesson, mode, override_workspace)
     path, err = workspace.ensure(track, lesson)
   end
   if not path then ui.notify(err, vim.log.levels.ERROR); return false end
-  local source = workspace.source_file(path)
-  if not source then ui.notify("el ejercicio no tiene src/lib.rs ni src/main.rs", vim.log.levels.ERROR); return false end
+  local source = workspace.source_file(path, lesson.exercise)
+  if not source then ui.notify("no se encontró el archivo fuente configurado para este ejercicio", vim.log.levels.ERROR); return false end
   local previous_track = state.active_track and curriculum.get(state.active_track) or nil
   local previous_lesson = previous_track and state.current_lesson and curriculum.lesson(previous_track, state.current_lesson) or nil
   local has_unsaved_changes = vim.bo[vim.api.nvim_get_current_buf()].modified
@@ -426,9 +430,9 @@ function M.trust_local()
   local track, lesson = active_context(state)
   if not track or not lesson then ui.notify("abre una lección primero", vim.log.levels.WARN); return end
   local variation = review_session ~= nil and review_session.mode == "practice"
-  local options = { "Permitir Cargo local para " .. lesson.title .. (variation and " · transferencia" or ""), "Cancelar" }
+  local options = { "Permitir ejecución local para " .. lesson.title .. (variation and " · transferencia" or ""), "Cancelar" }
   vim.ui.select(options, {
-    prompt = "Cargo ejecuta código y build scripts locales con los permisos de tu usuario.",
+    prompt = "El ejecutor compila y ejecuta código local con los permisos de tu usuario.",
   }, function(choice)
     if choice ~= options[1] then return end
     workspace.trust(state, track, lesson, variation)
@@ -456,7 +460,7 @@ end
 
 local function execute_test_run(state, track, lesson, path, is_review, assessment)
   local is_variation = review_session ~= nil and review_session.mode == "practice"
-  ui.notify(assessment and "evaluación iniciada; Cargo se ejecuta en segundo plano" or "tests visibles iniciados; Cargo se ejecuta en segundo plano")
+  ui.notify(assessment and "evaluación iniciada en segundo plano" or "tests visibles iniciados en segundo plano")
   local started = os.time()
   local initial_assistance = is_variation and progress.variation_status(state, track.id, lesson.id) or record_for(state, track, lesson)
   local attempt_exam = state.exam_active == true
@@ -465,8 +469,17 @@ local function execute_test_run(state, track, lesson, path, is_review, assessmen
   runner.run(track, lesson, path, assessment, config.get().runner.timeout_ms, function(result)
     if result.error then
       local error_text = result.error
-        :gsub("^could not start Cargo", "no se pudo iniciar Cargo")
+        :gsub("^could not start ", "no se pudo iniciar ")
         :gsub("^A Forja process is already running", "ya hay un proceso de Forja en ejecución")
+      if result.missing_tool then
+        ui.result("Falta una herramienta", {
+          "No se registró un intento porque no se pudo iniciar el entorno de ejecución.",
+          "Instala `" .. result.tool .. "` para este lenguaje o revisa el PATH.",
+          "Consulta :ForjaHealth después de instalarlo.",
+        })
+        ui.notify("falta " .. result.tool .. "; no se registró un intento", vim.log.levels.ERROR)
+        return
+      end
       ui.result("Error de ejecución", { error_text, "", "Revisa :ForjaHealth y vuelve a intentar." })
       ui.notify(error_text, vim.log.levels.ERROR)
       return
@@ -477,20 +490,6 @@ local function execute_test_run(state, track, lesson, path, is_review, assessmen
       return
     end
     local raw_output = result.output or ""
-    local cargo_missing = raw_output:find("cargo: not found", 1, true)
-      or raw_output:find("cargo: command not found", 1, true)
-      or (result.stderr or ""):find("No such file or directory", 1, true)
-    if cargo_missing then
-      local detail = vim.split(raw_output, "\n", { plain = true })
-      ui.result("Cargo no disponible", {
-        "No se registró un intento porque no se pudo iniciar el entorno de ejecución.",
-        "Instala Rust/Cargo o revisa el PATH y consulta :ForjaHealth.",
-        "",
-        table.concat(detail, "\n"),
-      })
-      ui.notify("no se encontró Cargo; no se contabilizó un intento · :ForjaResult muestra el diagnóstico", vim.log.levels.ERROR)
-      return
-    end
     local passed = result.code == 0
     local latest = load_state()
     if not latest then return end
@@ -515,28 +514,19 @@ local function execute_test_run(state, track, lesson, path, is_review, assessmen
     save_state(latest)
     local output = result.output
     raw_output = output
-    if result.signal and result.signal > 0 then
-      output = "La ejecución terminó por timeout o señal. Revisa el límite configurado y vuelve a intentar.\n\n" .. output
+    if result.timed_out or (result.signal and result.signal > 0) then
+      output = "La ejecución terminó por timeout o señal. Revisa el límite configurado y vuelve a intentar."
+      if not assessment then output = output .. "\n\n" .. (result.output or "") end
     elseif is_variation and assessment and not passed then
-      if output:find("error%[E%d+%]") or output:find("could not compile") then
-        output = "La variación no compiló. Diagnósticos de Rust:\n\n" .. output
-      else
-        output = "Evaluación de transferencia no aprobada. Revisa el requisito de esta variación y prueba casos límite.\n\n" .. output
-      end
+      output = "Evaluación de transferencia no aprobada. Las aserciones ocultas se omiten. Revisa el requisito de esta variación y prueba casos límite."
     elseif is_variation and passed and assessment then
       output = (record.independent and "✅ Variación resuelta de forma independiente.\n" or "✅ Variación aprobada; la asistencia queda registrada.\n")
-        .. "Este resultado se guarda por separado y no desbloquea la siguiente lección.\n\n" .. output
+        .. "Este resultado se guarda por separado y no desbloquea la siguiente lección."
     elseif assessment and not passed then
-      if output:find("error%[E%d+%]") or output:find("could not compile") then
-        local lines = vim.split(output, "\n", { plain = true })
-        while #lines > 24 do table.remove(lines) end
-        output = "La evaluación no compiló. Diagnósticos de Rust:\n\n" .. table.concat(lines, "\n")
-      else
-        output = "La evaluación no se aprobó. Las comprobaciones ocultas siguen fuera del workspace.\n\nRevisa los requisitos, usa `r` para tests visibles y vuelve a intentarlo."
-      end
+      output = "La evaluación no se aprobó. Las aserciones ocultas se omiten. Revisa los requisitos, usa `r` para tests visibles y vuelve a intentarlo."
     elseif passed and assessment then
       output = (record.independent and "✅ Evaluación aprobada de forma independiente.\n" or "✅ Evaluación aprobada; la asistencia queda registrada por separado.\n")
-        .. "La siguiente lección está disponible con :ForjaNext.\n\n" .. output
+        .. "La siguiente lección está disponible con :ForjaNext."
     elseif passed then
       output = "✅ Los tests visibles pasaron. La lección se desbloquea al aprobar :ForjaTest.\n\n" .. output
     else
@@ -549,10 +539,11 @@ local function execute_test_run(state, track, lesson, path, is_review, assessmen
       summary = is_variation and "variación aprobada" or "tests aprobados"
     elseif result.signal and result.signal > 0 then
       summary = "el proceso terminó por timeout o señal"
-    elseif raw_output:find("could not compile", 1, true) or raw_output:find("error[E", 1, true) then
-      summary = "error de compilación"
-    elseif raw_output:find("test result: FAILED", 1, true) then
+    elseif raw_output:find("FAILED", 1, true) or raw_output:find("FAIL", 1, true) then
       summary = assessment and "falló una o más comprobaciones de la evaluación" or "falló una o más comprobaciones visibles"
+    elseif raw_output:find("error:", 1, true) or raw_output:find("Exception", 1, true)
+      or raw_output:find("Traceback", 1, true) then
+      summary = "error de compilación o ejecución"
     else
       summary = is_variation and "variación no aprobada" or (assessment and "evaluación no aprobada" or "fallaron los tests visibles")
     end
@@ -711,7 +702,7 @@ function M.history()
       local real_root = vim.uv.fs_realpath(root)
       if stat and stat.type == "directory" and real and real_root and real:sub(1, #real_root + 1) == real_root .. "/" then
         local transfer = vim.fn.fnamemodify(path, ":t"):match("^transfer%-") ~= nil
-        local source = workspace.source_file(path)
+        local source = workspace.source_file(path, lesson.exercise)
         local source_real = source and vim.uv.fs_realpath(source)
         local source_stat = source and vim.uv.fs_lstat(source)
         if source_real and source_real:sub(1, #real + 1) == real .. "/" and source_stat and source_stat.type == "file" then
@@ -874,15 +865,37 @@ function M.health()
   local checks = {}
   table.insert(checks, { "Neovim >= 0.10", vim.fn.has("nvim-0.10") == 1 })
   table.insert(checks, { "API asíncrona vim.system", type(vim.system) == "function" })
-  table.insert(checks, { "Ejecutor fijo /bin/sh", vim.fn.executable("/bin/sh") == 1 })
-  table.insert(checks, { "Compilador Rust (rustc)", vim.fn.executable("rustc") == 1 })
-  table.insert(checks, { "Cargo", vim.fn.executable("cargo") == 1 })
-  local tracks = curriculum.list()
+  local tracks, curriculum_err = curriculum.list()
   table.insert(checks, { "Currículo JSON y grafo de requisitos", tracks ~= nil })
+  local adapters = require("forja.runner.adapters")
+  if tracks then
+    for _, track in ipairs(tracks) do
+      local required, seen, missing = {}, {}, {}
+      for _, lesson in ipairs(track._ordered_lessons) do
+        local manifest = lesson.exercise._manifest
+        for _, tool in ipairs((adapters.get(manifest.runner) or {}).tools or {}) do
+          if not seen[tool] then
+            seen[tool] = true
+            table.insert(required, tool)
+          end
+        end
+      end
+      table.sort(required)
+      for _, tool in ipairs(required) do
+        if vim.fn.executable(tool) ~= 1 then table.insert(missing, tool) end
+      end
+      local detail = #missing == 0 and "disponible" or "opcional · falta " .. table.concat(missing, ", ")
+      table.insert(checks, { track.language .. " toolchain", #missing == 0, detail })
+    end
+  end
   local state, state_err = progress.load()
   table.insert(checks, { "Almacenamiento de progreso", state ~= nil })
   local lines = { "# Salud de Forja", "" }
-  for _, check in ipairs(checks) do table.insert(lines, (check[2] and "[ok] " or "[missing] ") .. check[1]) end
+  for _, check in ipairs(checks) do
+    table.insert(lines, (check[2] and "[ok] " or "[missing] ") .. check[1]
+      .. (check[3] and " · " .. check[3] or ""))
+  end
+  if curriculum_err then table.insert(lines, "Detalle del currículo: " .. curriculum_err) end
   if state_err then table.insert(lines, "Detalle del almacenamiento: " .. state_err) end
   table.insert(lines, "")
   table.insert(lines, "Proveedor de IA: " .. (config.get().ai.provider and "configurado" or "opcional / sin configurar"))
