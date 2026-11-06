@@ -22,11 +22,11 @@ Test output remains in a bottom pane that updates on later runs and can be
 closed with `q`. On a fresh install the dashboard asks which track to start
 instead of choosing one implicitly.
 
-There is no shipped HTTP AI provider or spaced-repetition scheduler yet. The
-offline tutor uses a fixed Socratic question; `:ForjaReview` creates a clean
-workspace for explicit retrieval practice. See [the roadmap](docs/roadmap.md)
-for the next phases and [research notes](docs/research.md) for the upstream
-review and licensing decisions.
+The OpenAI Responses API provider is available as an opt-in; without it, the
+tutor uses a fixed offline Socratic question. A spaced-repetition scheduler is
+not shipped yet; `:ForjaReview` creates a clean workspace for explicit recall
+practice. See [the roadmap](docs/roadmap.md) for the next phases and
+[research notes](docs/research.md) for upstream review and licensing decisions.
 
 ## Requirements
 
@@ -36,13 +36,14 @@ review and licensing decisions.
   - Python: `python3` (standard-library `unittest`).
   - Java: JDK 11+ (`javac` and `java`; standard library only).
   - Go: Go 1.21+ (standard library only; module network access is disabled).
+- `curl` is needed only for the optional OpenAI provider.
 - Python 3 is also used by the optional solution verification scripts.
 - lazy.nvim is recommended; there are no required Neovim plugin dependencies.
 
 On Arch Linux/CachyOS:
 
 ```sh
-sudo pacman -S neovim python rust jdk-openjdk go
+sudo pacman -S neovim python rust jdk-openjdk go curl
 ```
 
 The Arch `rust` package includes `rustc` and Cargo. The JDK provides both
@@ -146,7 +147,7 @@ Exam Mode only controls features inside Forja.
 | `:ForjaRun` | Run visible tests with the selected language toolchain asynchronously. |
 | `:ForjaTest` | Run the hidden assessment target in a temporary copy; `:ForjaRun` runs visible tests. |
 | `:ForjaTrustLocal` | Explicitly approve local code execution for this exercise. |
-| `:ForjaCancel` | Request cancellation of the active Forja process. |
+| `:ForjaCancel` | Cancel the pending tutor request or active Forja process. |
 | `:ForjaHint` | Reveal and record the next hint in the six-step ladder. |
 | `:ForjaRecall` | Capture short answers to the lesson's retrieval questions. |
 | `:ForjaHistory` | Review saved recall answers or resume a saved review/transfer workspace. |
@@ -159,10 +160,51 @@ Exam Mode only controls features inside Forja.
 | `:ForjaHealth` | Check Neovim APIs, installed course toolchains, curriculum parsing, and progress storage. |
 | `:ForjaExport [path]` | Export the versioned progress JSON. With no path, prompts for one. |
 
-## AI provider configuration
+## OpenAI tutor configuration
 
-AI is optional and no network provider ships in Phase 1. The tutor accepts a
-configured Lua provider object through `opts.ai.provider`. Its interface is:
+Forja includes an optional adapter for OpenAI's [Responses API](https://developers.openai.com/api/docs/guides/text).
+It is off by default; without configuration, `:ForjaTutor` uses the offline
+mock. The adapter requires `curl` and reads the API key from `OPENAI_API_KEY`
+when you ask the tutor. It sends the tutor instructions and lesson context, but
+does not send workspace files or source buffers. Responses use `store = false`.
+
+Create an API key in the [OpenAI API platform](https://platform.openai.com/api-keys)
+and make it available in the environment of the Neovim process. In Zsh, for a
+single terminal session, you can enter it without echoing it or putting it in
+shell history:
+
+```zsh
+read -rs 'OPENAI_API_KEY?OpenAI API key: '
+export OPENAI_API_KEY
+nvim
+```
+
+Then change the existing LazyVim spec's `opts` field to a function that adds
+the provider while preserving your other options:
+
+```lua
+opts = function(_, opts)
+  opts.ai = opts.ai or {}
+  opts.ai.provider = require("forja.ai.providers.openai").new({
+    -- Optional. Defaults to gpt-6-luna; can also use FORJA_OPENAI_MODEL.
+    -- model = "gpt-6-luna",
+    timeout_ms = 45000,
+    max_output_tokens = 800,
+  })
+  return opts
+end,
+```
+
+Restart Neovim, open a lesson, then run `:ForjaTutor`. Use `:ForjaHealth` to
+check `curl`, the key's presence, the selected model, and this session's token
+totals. `:ForjaCancel` cancels a pending tutor request or a running exercise.
+The model can be changed with the `model` option or the `FORJA_OPENAI_MODEL`
+environment variable. A model response is guidance, not a test result.
+OpenAI API usage is billed separately from a ChatGPT subscription; see the
+[OpenAI billing explanation](https://help.openai.com/en/articles/9039756-managing-billing-for-chatgpt-and-the-api-platform).
+
+Custom providers remain supported through `opts.ai.provider` and the same
+small interface:
 
 ```lua
 {
@@ -174,11 +216,10 @@ configured Lua provider object through `opts.ai.provider`. Its interface is:
 }
 ```
 
-The context intentionally excludes learner files and source buffers. Do not put
-API keys in Forja progress data or source files; a future built-in provider will
-read secrets from the environment or a secret store. Provider output is tutoring
-advice, not a test result. Exam Mode does not call the provider and never falls
-back to one.
+The context intentionally excludes learner files and source buffers. Keep API
+keys out of Forja progress data, source files, and public Git repositories.
+Provider output is tutoring advice, not a test result. Exam Mode does not call
+the provider and never falls back to one.
 
 ## Data, backup, and migration
 
@@ -220,9 +261,10 @@ with the corresponding language toolchains:
 bash tests/run.sh
 ```
 
-The complete suite requires Rust/Cargo, Python 3, a JDK, and Go. To use Forja
-without one of those toolchains, install only the runtimes for tracks you plan
-to study; the plugin itself does not require the other compilers.
+The complete suite requires Rust/Cargo, Python 3, a JDK, and Go. The optional
+OpenAI provider also uses `curl`. To use Forja without one of those toolchains,
+install only the runtimes for tracks you plan to study; the plugin itself does
+not require the other compilers.
 
 The suite uses no Plenary or other Neovim test dependency. It covers graph
 validation, migrations, persistence, sticky assistance accounting, clean
@@ -230,10 +272,10 @@ retrieval and exam gating, saved history and session restoration, restricted
 recall/review views, tabbed lessons, first-run track selection, persistent test
 results, responsive UI cleanup and resize, assessment gating, unsaved-buffer
 safety, separate transfer workspaces, mandatory hidden assessments, workspace
-staging limits, process-group cancellation, and a total execution deadline. It
-checks that ten Rust starters compile without warnings and verifies all twenty
-foundation exercises and all twenty transfer variations against visible and
-hidden tests.
+staging limits, process-group cancellation, OpenAI protocol parsing, missing-key
+handling, token usage, timeout and cancellation. It checks that ten Rust starters
+compile without warnings and verifies all twenty foundation exercises and all
+twenty transfer variations against visible and hidden tests.
 
 ## Security limits
 

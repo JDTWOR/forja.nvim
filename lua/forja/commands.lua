@@ -10,6 +10,7 @@ local registered = false
 local review_session
 local session_loaded = false
 local modified_workspace_buffers
+local active_tutor_request
 
 local concept_labels = {
   ["rust.binding"] = "bindings", ["rust.mutability"] = "mutability", ["rust.shadowing"] = "shadowing",
@@ -851,6 +852,7 @@ function M.tutor()
   local state = load_state()
   if not state then return end
   if state.exam_active then ui.notify("el tutor está deshabilitado durante Exam Mode", vim.log.levels.WARN); return end
+  if active_tutor_request then ui.notify("ya hay una consulta al tutor en curso; usa :ForjaCancel para cancelarla", vim.log.levels.WARN); return end
   local track, lesson = active_context(state)
   if not track or not lesson then return end
   local is_variation = review_session ~= nil and review_session.mode == "practice"
@@ -868,7 +870,11 @@ function M.tutor()
     }
     local complete = require("forja.ai.interface").request
     if not provider then provider = require("forja.ai.mock") end
-    complete(provider, request, function(response)
+    local request_id = {}
+    active_tutor_request = { id = request_id }
+    local handle = complete(provider, request, function(response)
+      if not active_tutor_request or active_tutor_request.id ~= request_id then return end
+      active_tutor_request = nil
       if not response or response.error or type(response.text) ~= "string" then
         ui.notify(response and response.error or "la respuesta del tutor no tiene el formato esperado", vim.log.levels.ERROR)
         return
@@ -881,15 +887,35 @@ function M.tutor()
       end
       progress.add_ai_assistance(latest, track.id, lesson.id, is_variation)
       save_state(latest)
-      ui.lines("Tutor socrático · " .. lesson.title, {
+      local usage = response.usage
+      local usage_line = type(usage) == "table" and type(usage.input_tokens) == "number"
+        and string.format("Tokens de esta respuesta: %d entrada · %d salida", usage.input_tokens, tonumber(usage.output_tokens) or 0)
+        or nil
+      local lines = {
         "# Guía socrática",
         "",
         response.text,
         "",
         provider == require("forja.ai.mock") and "Modo offline: pregunta fija; no es una respuesta generada por IA." or "La respuesta es orientación educativa, no un veredicto de competencia.",
-      })
+      }
+      if usage_line then table.insert(lines, ""); table.insert(lines, usage_line) end
+      ui.lines("Tutor socrático · " .. lesson.title, lines)
     end)
+    if active_tutor_request and active_tutor_request.id == request_id then
+      active_tutor_request.cancel = handle and handle.cancel or nil
+    end
   end)
+end
+
+function M.cancel()
+  if active_tutor_request then
+    local pending = active_tutor_request
+    active_tutor_request = nil
+    if pending.cancel then pcall(pending.cancel) end
+    return true, "tutor"
+  end
+  if runner.cancel() then return true, "runner" end
+  return false
 end
 
 function M.health()
@@ -929,7 +955,21 @@ function M.health()
   if curriculum_err then table.insert(lines, "Detalle del currículo: " .. curriculum_err) end
   if state_err then table.insert(lines, "Detalle del almacenamiento: " .. state_err) end
   table.insert(lines, "")
-  table.insert(lines, "Proveedor de IA: " .. (config.get().ai.provider and "configurado" or "opcional / sin configurar"))
+  local provider = config.get().ai.provider
+  table.insert(lines, "Proveedor de IA: " .. (provider and "configurado" or "opcional / sin configurar"))
+  local provider_name = provider and provider.name or "personalizado"
+  if provider and type(provider.health) == "function" then
+    local provider_ok, detail = provider.health()
+    table.insert(lines, provider_name .. ": " .. (provider_ok and "[ok] " or "[missing] ") .. tostring(detail))
+  end
+  if provider and type(provider.usage) == "function" then
+    local usage = provider.usage()
+    if type(usage) == "table" then
+      table.insert(lines, string.format("Uso %s en esta sesión: %d solicitudes · %d tokens entrada · %d tokens salida",
+        provider_name,
+        tonumber(usage.requests) or 0, tonumber(usage.input_tokens) or 0, tonumber(usage.output_tokens) or 0))
+    end
+  end
   ui.lines("Salud de Forja", lines)
 end
 
@@ -973,7 +1013,10 @@ function M.setup()
     register("ForjaTest", { desc = "Ejecutar la evaluación aislada" }, function() test_run(true) end)
     register("ForjaTrustLocal", { desc = "Aprobar la ejecución local de este ejercicio" }, M.trust_local)
     register("ForjaCancel", { desc = "Cancel a running Forja process" }, function()
-      if runner.cancel() then ui.notify("se solicitó cancelar el proceso") else ui.notify("no hay un proceso de Forja en ejecución", vim.log.levels.WARN) end
+      local cancelled, kind = M.cancel()
+      if not cancelled then ui.notify("no hay una consulta o ejecución de Forja en curso", vim.log.levels.WARN)
+      elseif kind == "tutor" then ui.notify("se canceló la consulta al tutor")
+      else ui.notify("se solicitó cancelar la ejecución") end
     end)
     register("ForjaHint", { desc = "Solicitar la siguiente pista gradual" }, M.hint)
     register("ForjaHistory", { desc = "Revisar respuestas y reanudar práctica guardada" }, M.history)

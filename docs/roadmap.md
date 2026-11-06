@@ -19,12 +19,12 @@
   and one total deadline across the Rust, Python, Java, and Go execution backends.
 - Headless domain/end-to-end tests and solution verification.
 
-## Phase 2 — provider-backed tutor
+## Phase 2 — broader tutor behaviors
 
-- Add one first-party HTTP provider and a mock provider test suite.
-- Structured schemas for explanations, questions, hints and reviews.
-- Request timeout/cancellation, context limits, usage accounting and safe error
-  reporting. Keep tools disabled and avoid learner file uploads by default.
+- Initial OpenAI Responses API adapter is implemented with mock-based protocol
+  tests, a required environment key, disabled server-side response storage,
+  request timeout/cancellation, context caps, usage accounting and safe errors.
+- Add structured schemas for explanations, questions, hints and reviews.
 - Add selectable Professor, Socratic, Coach, Debugging, Code Review, Interviewer
   and Reflection behaviors. Exam Mode remains offline and refuses AI fallback.
 
@@ -56,8 +56,8 @@
 
 ## Next concrete tasks
 
-1. Add a maintained AI HTTP adapter behind the current interface and test malformed
-   JSON, missing credentials, timeouts and cancellation.
+1. Add structured tutor response types and selectable tutor modes behind the
+   existing provider interface.
 2. Choose a vetted FSRS library and write an adapter test suite before shipping
    scheduled reviews.
 3. Add independent assessments for module projects and concept transfer.

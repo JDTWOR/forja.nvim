@@ -87,7 +87,10 @@ checks for a non-empty text response. `ai/context.lua` sends the lesson objectiv
 concept tags, assistance level, attempt count, mode and learner question; it does
 not collect repository files. The built-in mock gives one fixed Socratic question
 and is not an AI model. `ai/prompts.lua` contains the educational system prompt.
-No AI provider is included in Phase 1.
+The opt-in `ai/providers/openai.lua` adapter calls the Responses API asynchronously
+through `curl`, reads its key from an environment variable, sends no files, sets
+`store = false`, and supports timeout, cancellation, and session token accounting.
+The mock remains the default, so Forja still works offline without an API key.
 
 ## Lazy.nvim
 
