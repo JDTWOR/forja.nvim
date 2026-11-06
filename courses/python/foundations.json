@@ -3,7 +3,7 @@
   "id": "python-foundations",
   "version": "1.0.0",
   "title": "Fundamentos de Python",
-  "description": "Asignaciones, control de flujo, funciones, collections y parsing defensivo con la biblioteca estándar.",
+  "description": "Asignaciones, control de flujo, funciones, colecciones y parsing defensivo con la biblioteca estándar.",
   "language": "python",
   "modules": [
     {
@@ -20,47 +20,54 @@
       "id": "bindings-and-types",
       "module": "python-basics",
       "title": "Bindings y tipos dinámicos",
-      "objective": "Asignar valores, reconocer tipos de Python y elegir una representación coherente para un cálculo.",
+      "objective": "Asignar valores, reconocer tipos de Python y elegir representaciones coherentes para cálculos.",
       "concepts": [
         "python.assignment",
         "python.numeric-types",
-        "python.booleans",
         "python.f-strings"
       ],
       "prerequisites": [],
-      "explanation": "En Python, una asignación enlaza un nombre con un objeto y no declara un tipo fijo para ese nombre. int representa enteros, float aproximaciones decimales y bool decisiones. Para importes de dinero, los centavos enteros evitan errores de redondeo binario.",
-      "example": "unit_price_cents = 275\nquantity = 3\nsubtotal_cents = unit_price_cents * quantity\nhas_stock = quantity <= 8\nlabel = f\"{quantity} items: {subtotal_cents} cents\"",
+      "explanation": "En Python, una asignación enlaza un nombre con un objeto; el nombre no queda fijado a un tipo. int representa enteros y float aproximaciones decimales. Para dinero, guardar centavos como enteros evita errores de redondeo binario. Un f-string inserta valores en texto.",
+      "example": "hours = 2\nminutes = 35\ntotal_minutes = hours * 60 + minutes\nneeds_break = total_minutes >= 120\nsummary = f\"Study session: {total_minutes} minutes\"",
       "questions": [
-        "¿Una asignación price = 10 fija para siempre el tipo de price?",
-        "¿Por qué conviene expresar dinero en centavos enteros en este ejercicio?"
+        "¿Una asignación duration = 10 fija para siempre el tipo de duration?",
+        "¿Qué tipo conserva quantity * unit_price_cents si ambos operandos son int?"
       ],
-      "guided": "Anota el tipo de cada entrada y salida. Sigue el valor de quantity y unit_price_cents antes de escribir las funciones.",
+      "guided": "Anota el tipo y la unidad de cada valor antes de operar. Comprueba con un caso pequeño que la unidad de la salida sea la esperada.",
       "requirements": [
-        "Implementa calculate_subtotal para multiplicar cantidad por precio unitario en centavos.",
-        "Implementa has_sufficient_stock; la cantidad solicitada debe ser no negativa y no puede superar la disponibilidad.",
-        "Implementa format_item_line con un f-string que incluya nombre, cantidad y subtotal."
+        "quantity y unit_price_cents son enteros no negativos; calculate_subtotal devuelve su producto exacto.",
+        "format_item_line devuelve exactamente «{name} x{quantity}: {subtotal} cents» usando un f-string."
       ],
-      "variation": "Adapta el formato para mostrar por separado precio unitario y subtotal, sin convertir los centavos a float.",
+      "variation": "Construye un resumen de duración no negativa a partir de minutos y segundos (seconds puede superar 59), determina si alcanza una hora y formatea una etiqueta legible.",
       "hints": [
-        "Escribe los tipos esperados de las entradas y el resultado de cada función.",
-        "¿Qué operación combina cantidad y precio unitario para obtener un subtotal?",
-        "El subtotal permanece como int porque los precios están expresados en centavos.",
-        "La condición de stock necesita comprobar el límite superior y que la cantidad no sea negativa.",
-        "Un f-string inserta expresiones entre llaves sin concatenar manualmente.",
-        "Usa quantity * unit_price_cents; para stock combina requested >= 0 y requested <= available."
+        "Escribe la unidad de quantity y unit_price_cents antes de calcular.",
+        "¿Qué operación combina una cantidad de unidades con un precio por unidad?",
+        "Si ambos operandos son int, el producto también puede representarse como un int exacto.",
+        "Guarda el resultado intermedio con un nombre que exprese su unidad.",
+        "format_item_line necesita reutilizar el cálculo, no duplicarlo.",
+        "Usa quantity * unit_price_cents y luego inserta el subtotal en un f-string."
       ],
       "exercise": {
         "project_dir": "exercises/bindings-and-types",
         "starter_dir": "starter",
         "assessment_file": "assessment.py",
-        "solution_file": "solution.py"
-      }
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "Anota qué representa cada argumento y en qué unidad se expresa cada resultado.",
+        "¿Cuántos segundos hay en un minuto?",
+        "Suma los segundos de los minutos a los segundos indicados.",
+        "La comparación con 3600 produce un bool.",
+        "Reutiliza el cálculo de duración para evitar repetir la conversión.",
+        "Forma el texto con un f-string que incluya la etiqueta y la duración total en segundos."
+      ]
     },
     {
       "id": "control-flow",
       "module": "python-basics",
       "title": "Control flow y límites",
-      "objective": "Construir ramas ordenadas que cubran entradas válidas, inválidas y fronteras de un contrato.",
+      "objective": "Construir ramas ordenadas que cubran valores válidos, inválidos y fronteras de un contrato.",
       "concepts": [
         "python.conditionals",
         "python.boolean-expressions",
@@ -69,18 +76,18 @@
       "prerequisites": [
         "bindings-and-types"
       ],
-      "explanation": "if, elif y else ejecutan una sola rama, por eso el orden de los límites importa. Python considera falsos valores como 0, pero es mejor expresar el contrato directamente cuando una entrada numérica puede ser cero. Diseña condiciones que cubran cada frontera y el caso restante.",
-      "example": "if weight_grams < 0:\n    return \"invalid\"\nelif weight_grams <= 500:\n    return \"small\"\nelif weight_grams <= 2000:\n    return \"medium\"\nelse:\n    return \"large\"",
+      "explanation": "if, elif y else ejecutan una sola rama, así que el orden de los límites importa. Python considera falsos valores como 0, pero conviene expresar el contrato directamente cuando cero es una entrada válida. Diseña condiciones que cubran cada frontera y el caso restante.",
+      "example": "if temperature_c < 0:\n    label = \"freezing\"\nelif temperature_c <= 18:\n    label = \"cool\"\nelif temperature_c <= 28:\n    label = \"mild\"\nelse:\n    label = \"warm\"",
       "questions": [
-        "¿Qué ocurre con 500 gramos si primero preguntas weight_grams <= 500?",
+        "¿Qué etiqueta recibe exactamente 18 si la segunda condición es temperature_c <= 18?",
         "¿Por qué conviene manejar valores negativos de forma explícita?"
       ],
-      "guided": "Haz una tabla con -1, 0, 500, 501, 2000 y 2001. Escribe primero la etiqueta esperada y luego implementa las ramas.",
+      "guided": "Haz una tabla con valores debajo, encima y exactamente en cada frontera. Anota el resultado esperado antes de escribir las ramas.",
       "requirements": [
-        "Implementa shipping_band con límites inclusivos en 500 y 2000 gramos y etiqueta entradas negativas como invalid.",
-        "Implementa shipping_cost: tarifas base de 500, 1000 y 2500 centavos; express agrega 750 centavos; peso negativo cuesta 0."
+        "shipping_band clasifica gramos negativos como invalid, hasta 500 inclusive como small, hasta 2000 inclusive como medium y el resto como large.",
+        "shipping_cost usa tarifas base de 500, 1000 y 2500 centavos para esas bandas; express agrega 750 centavos y peso negativo cuesta 0."
       ],
-      "variation": "Clasifica tiempos de respuesta en fast, normal o slow y conserva una rama explícita para medidas negativas.",
+      "variation": "Calcula el retraso de reintento de una operación con exponential backoff, una pista opcional del servidor y un límite máximo.",
       "hints": [
         "Lista todos los intervalos válidos y el valor que queda fuera.",
         "¿Qué condición evita que un peso negativo caiga en la primera banda?",
@@ -93,14 +100,23 @@
         "project_dir": "exercises/control-flow",
         "starter_dir": "starter",
         "assessment_file": "assessment.py",
-        "solution_file": "solution.py"
-      }
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "Escribe por separado las reglas para no necesitar reintento, backoff local y pista del servidor.",
+        "¿Qué debe ocurrir con un número de intentos menor o igual a cero?",
+        "El backoff se duplica con cada intento y llega a un tope.",
+        "La pista del servidor debe compararse con el backoff ya calculado.",
+        "Aplica el límite global después de escoger el mayor retraso.",
+        "Para intento n positivo, el backoff es min(2 ** (n - 1), 30); combina con max y limita el resultado a 60."
+      ]
     },
     {
       "id": "functions-and-composition",
       "module": "python-practice",
       "title": "Functions y composición",
-      "objective": "Separar cálculos con contratos claros y componerlos en el orden requerido por una regla de negocio.",
+      "objective": "Separar cálculos en funciones con contratos claros y componer sus resultados en el orden requerido.",
       "concepts": [
         "python.functions",
         "python.parameters",
@@ -110,19 +126,19 @@
       "prerequisites": [
         "control-flow"
       ],
-      "explanation": "Una función recibe argumentos, ejecuta un bloque y devuelve un resultado con return. Los nombres y parámetros forman parte de su contrato. Dividir una operación grande en funciones pequeñas permite probar cada paso y hace visible el orden. En este ejercicio, el descuento se aplica antes del impuesto y ambos se calculan con centavos enteros.",
-      "example": "def discount_cents(subtotal_cents, percent):\n    return subtotal_cents * percent // 100\n\n\ndef checkout_total(subtotal_cents, discount_percent, tax_percent):\n    discounted = subtotal_cents - discount_cents(subtotal_cents, discount_percent)\n    tax = discounted * tax_percent // 100\n    return discounted + tax",
+      "explanation": "Una función recibe argumentos, ejecuta un bloque y devuelve un resultado con return. Los nombres y parámetros forman parte de su contrato. Dividir una operación en funciones pequeñas permite probar cada paso y hace visible cómo se componen. En este ejercicio, los importes son enteros no negativos y las tasas enteras están entre 0 y 100.",
+      "example": "def rectangle_area(width, height):\n    return width * height\n\n\ndef rectangle_perimeter(width, height):\n    return 2 * (width + height)\n\n\ndef rectangle_summary(width, height):\n    return rectangle_area(width, height), rectangle_perimeter(width, height)",
       "questions": [
         "¿Qué diferencia hay entre imprimir un valor y devolverlo con return?",
-        "¿Sobre qué monto se calcula el impuesto después del descuento?"
+        "¿Por qué rectangle_summary puede reutilizar funciones pequeñas?"
       ],
-      "guided": "Calcula el descuento, resta ese importe, calcula el impuesto sobre el resultado y suma al final. Conserva una variable por etapa.",
+      "guided": "Prueba primero cada función con valores fáciles de calcular a mano. Después usa sus resultados para construir la operación completa.",
       "requirements": [
-        "Implementa discount_cents con división entera para centavos.",
-        "Implementa tax_cents sobre una base imponible.",
-        "Compón ambas funciones en checkout_total, aplicando primero descuento y luego impuesto."
+        "subtotal_cents es un entero no negativo; los porcentajes discount_percent y tax_percent son enteros de 0 a 100.",
+        "discount_cents devuelve subtotal_cents * percent // 100 y tax_cents calcula la tasa sobre su base recibida.",
+        "checkout_total aplica el descuento antes del impuesto y devuelve el total final en centavos."
       ],
-      "variation": "Añade una comisión fija al checkout sin duplicar el cálculo de descuento ni el de impuesto.",
+      "variation": "Calcula la duración total de un recorrido compuesto por segmentos con distance_km >= 0 y speed_kph > 0; redondea cada segmento hacia arriba y agrega pausas con stop_count >= 0 y minutes_per_stop >= 0.",
       "hints": [
         "Escribe la fórmula de cada operación antes de conectarlas.",
         "¿El valor de descuento es un total nuevo o una cantidad que debes restar?",
@@ -135,14 +151,23 @@
         "project_dir": "exercises/functions-and-composition",
         "starter_dir": "starter",
         "assessment_file": "assessment.py",
-        "solution_file": "solution.py"
-      }
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "Decide qué debe devolver cada función pequeña antes de componer el resultado.",
+        "La duración sin pausas de un segmento se expresa en horas; conviértela a minutos.",
+        "Cada segmento se redondea individualmente hacia arriba, incluso si ocupa una fracción de minuto.",
+        "Calcula las pausas en una función aparte.",
+        "Usa una suma de las duraciones de todos los segmentos y agrega el total de pausas.",
+        "math.ceil(distance_km * 60 / speed_kph) redondea cada tramo; compón esos valores y el cálculo de pausas."
+      ]
     },
     {
       "id": "collections",
       "module": "python-practice",
       "title": "Collections: dicts y listas",
-      "objective": "Recorrer y combinar collections manteniendo una política de empate y evitando mutaciones inesperadas.",
+      "objective": "Recorrer y combinar collections, conservar reglas deterministas y evitar mutaciones inesperadas.",
       "concepts": [
         "python.dict",
         "python.list",
@@ -154,20 +179,20 @@
       "prerequisites": [
         "functions-and-composition"
       ],
-      "explanation": "dict asocia keys con values y se puede recorrer con .items(). sum y max expresan agregaciones comunes, pero max necesita una regla estable para empates. Una función que combina inventarios puede devolver un dict nuevo para no modificar los argumentos que pertenecen al llamador.",
-      "example": "stock = {\"tea\": 4, \"coffee\": 2}\ntotal_units = sum(stock.values())\nmost_stocked = max(stock, key=lambda sku: (stock[sku], sku))",
+      "explanation": "dict asocia keys con values y se recorre con .items(); list mantiene elementos en orden. sum y max expresan agregaciones, pero max necesita una política clara para empates. Una función que combina inventarios puede devolver un dict nuevo para no mutar los argumentos del caller.",
+      "example": "attendees_by_room = {\"lab-a\": [\"Ana\", \"Luis\"], \"lab-b\": []}\noccupied_rooms = [room for room, attendees in attendees_by_room.items() if attendees]\nattendee_count = sum(len(attendees) for attendees in attendees_by_room.values())",
       "questions": [
         "¿Qué entrega stock.items() en cada iteración?",
-        "¿Qué regla resuelve el empate entre dos products con la misma cantidad?"
+        "En most_stocked_sku, ¿qué SKU gana cuando las cantidades empatan?"
       ],
-      "guided": "Prueba con inventario vacío, un solo producto y dos productos empatados. Para combinar, copia el dict inicial y procesa después las entradas recibidas.",
+      "guided": "Prueba con un dict vacío, un solo producto y dos productos empatados. Para combinar, copia el dict inicial y procesa después las entradas recibidas.",
       "requirements": [
-        "Implementa total_units para sumar todas las cantidades.",
-        "Implementa most_stocked_sku; devuelve None para un dict vacío y desempata lexicográficamente.",
-        "Implementa merge_inventory devolviendo un dict nuevo con cantidades sumadas, sin mutar los argumentos.",
-        "Implementa inventory_report como una list ordenada por cantidad descendente y SKU ascendente."
+        "total_units suma todas las cantidades del dict; un inventario vacío suma 0.",
+        "most_stocked_sku devuelve None si está vacío; en empates gana el SKU lexicográficamente mayor.",
+        "merge_inventory devuelve un dict nuevo con cantidades sumadas y no modifica ninguno de sus argumentos.",
+        "inventory_report devuelve una lista por cantidad descendente y, en empates, SKU ascendente."
       ],
-      "variation": "Extiende el reporte para devolver los SKUs ordenados de menor a mayor cantidad y de forma determinista en empates.",
+      "variation": "Cuenta nombres de eventos de una lista (comparación sensible a mayúsculas) y devuelve un ranking por frecuencia descendente, con nombre ascendente como desempate.",
       "hints": [
         "Identifica si necesitas las quantities, las keys o ambos elementos.",
         "¿Cómo puedes sumar una secuencia de values sin escribir un acumulador manual?",
@@ -180,8 +205,17 @@
         "project_dir": "exercises/collections",
         "starter_dir": "starter",
         "assessment_file": "assessment.py",
-        "solution_file": "solution.py"
-      }
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "El resultado de conteo necesita asociar cada nombre con una cantidad.",
+        "Recorre la lista en orden y actualiza una entrada por cada evento.",
+        "Una entrada nueva puede comenzar con get(event, 0).",
+        "Para ordenar el ranking, la frecuencia debe ir antes del nombre.",
+        "Limita la lista resultante después de aplicar el orden determinista.",
+        "Ordena con key=lambda item: (-item[1], item[0]); para limit <= 0 devuelve una lista vacía."
+      ]
     },
     {
       "id": "exceptions-and-parsing",
@@ -197,19 +231,19 @@
       "prerequisites": [
         "collections"
       ],
-      "explanation": "Los datos externos empiezan como strings y deben validarse antes de usarse. int y Decimal lanzan ValueError ante ciertos errores, pero un contrato de parsing debe controlar además valores vacíos, rangos y formatos aceptados. Atrapar una excepción sirve para traducir el error; lanzar ValueError indica al llamador que la entrada incumple el contrato.",
-      "example": "try:\n    quantity = int(raw_quantity)\nexcept ValueError as error:\n    raise ValueError(\"quantity must be a positive integer\") from error\n\nif quantity <= 0:\n    raise ValueError(\"quantity must be positive\")",
+      "explanation": "Los datos externos empiezan como strings y deben validarse antes de usarse. int(text) lanza ValueError si no puede convertir el formato. En cambio, Decimal(text) puede señalar decimal.InvalidOperation ante texto numérico inválido; esa excepción no es ValueError. Un parser debe verificar primero el formato y traducir fallas de conversión a un ValueError coherente para el caller.",
+      "example": "import json\n\ntry:\n    settings = json.loads(raw_settings)\nexcept json.JSONDecodeError as error:\n    raise ValueError(\"settings must contain valid JSON\") from error",
       "questions": [
         "¿Qué diferencia hay entre devolver None y lanzar ValueError cuando el caller proporcionó un formato inválido?",
-        "¿Por qué Decimal es adecuado para convertir precios decimales?"
+        "¿Por qué Decimal es adecuado para convertir precios decimales sin pasar por float?"
       ],
-      "guided": "Valida primero que el string no esté vacío; luego convierte; al final comprueba el rango. Prueba espacios, texto, cero, negativos y demasiados decimales.",
+      "guided": "Valida el formato permitido antes de convertir; después comprueba el rango. Prueba espacios, texto, cero, negativos y demasiados decimales. Traduce decimal.InvalidOperation cuando pueda escapar del validador.",
       "requirements": [
-        "Implementa parse_quantity: acepta un entero decimal positivo rodeado de whitespace y rechaza cero, negativos y texto inválido con ValueError.",
-        "Implementa parse_price_cents: acepta cantidades no negativas con cero, uno o dos decimales, sin exponentes, y devuelve centavos exactos.",
-        "Implementa parse_item: acepta name,quantity, recorta espacios, rechaza nombre vacío y reutiliza parse_quantity."
+        "parse_quantity acepta dígitos decimales positivos rodeados de whitespace y lanza ValueError ante cero, negativos o texto inválido.",
+        "parse_price_cents acepta cantidades no negativas con cero, uno o dos decimales, sin exponentes, y devuelve centavos exactos como int.",
+        "parse_item acepta name,quantity, recorta espacios, rechaza nombre vacío y reutiliza parse_quantity."
       ],
-      "variation": "Amplía el parser para leer un CSV de varias líneas y reportar el número de línea junto al primer error de validación.",
+      "variation": "Lee filas CSV sin encabezado, cada una con sensor_id y temperatura en el rango -80.0..80.0 C con hasta un decimal. Ignora líneas vacías, devuelve décimas de grado y reporta el número físico de la primera línea inválida.",
       "hints": [
         "Enumera formatos válidos antes de convertir; por ejemplo, 12.3 sí y 12.345 no.",
         "¿Qué tipo decimal evita pasar por una aproximación float?",
@@ -222,8 +256,17 @@
         "project_dir": "exercises/exceptions-and-parsing",
         "starter_dir": "starter",
         "assessment_file": "assessment.py",
-        "solution_file": "solution.py"
-      }
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "Procesa las líneas en orden y conserva el número físico de cada línea.",
+        "Ignora líneas vacías, pero exige exactamente dos columnas en cada fila no vacía.",
+        "Recorta el identificador y verifica que no quede vacío.",
+        "Define explícitamente la sintaxis decimal aceptada antes de convertir.",
+        "Convierte el valor a décimas y agrega el número de línea al mensaje de ValueError.",
+        "Usa csv.reader con strict=True y Decimal; captura csv.Error y decimal.InvalidOperation y tradúcelos a ValueError con la línea."
+      ]
     }
   ]
 }

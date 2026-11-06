@@ -4,6 +4,9 @@ from solution import parse_item, parse_price_cents, parse_quantity
 
 
 class TestForjaAssessment(unittest.TestCase):
+    def test_large_prices_remain_exact_without_float_rounding(self):
+        self.assertEqual(parse_price_cents("123456789012345678901234567890.12"), 12345678901234567890123456789012)
+
     def test_invalid_prices_raise_value_error(self):
         for invalid in ("", "-1.00", "1.234", "1e2", "one"):
             with self.subTest(invalid=invalid):

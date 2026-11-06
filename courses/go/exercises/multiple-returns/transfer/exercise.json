@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "multiple-returns",
+  "runner": "go-test",
+  "package": "exercise",
+  "module": "forja.local/transfer/multiple-returns",
+  "source_file": "solution.go",
+  "public_test_file": "solution_test.go",
+  "assessment_file": "assessment_test.go",
+  "solution_file": "solution.go",
+  "timeout_ms": 30000
+}

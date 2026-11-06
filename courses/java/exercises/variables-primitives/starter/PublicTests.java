@@ -5,8 +5,7 @@ public class PublicTests {
 
     public static void main(String[] args) {
         equal(1450, Solution.addFee(1200, 250), "fee");
-        equal(1178, Solution.discountThenTax(1099, 10, 19), "discount then tax");
-        equal(1177, Solution.taxThenDiscount(1099, 10, 19), "tax then discount");
-        equal(0, Solution.discountThenTax(0, 0, 0), "zero amount");
+        equal(1200, Solution.addFee(1200, 0), "zero fee");
+        equal(Integer.MAX_VALUE, Solution.addFee(Integer.MAX_VALUE, 0), "int boundary");
     }
 }

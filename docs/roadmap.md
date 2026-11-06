@@ -6,10 +6,13 @@
 - Validated JSON curriculum graph and twenty Spanish foundation lessons across
   Rust, Python, Java, and Go, backed by reviewed language runner adapters.
 - Persistent learner workspaces, visible tests, isolated local assessment copy,
-  verified reference solutions and progress gates.
+  verified reference solutions and progress gates; all twenty lessons have a
+  separate executable transfer project.
+- Tabbed lesson reader and a persistent bottom test-output pane on wide
+  terminals, with first-run track selection instead of an implicit default.
 - JSON progress persistence, backups, migrations, hints, local Exam Mode,
   cancellation, health checks, ungraded active-recall capture and dedicated
-  transfer projects for each Rust lesson. Clean review/exam sessions preserve
+  transfer projects for every lesson in all four tracks. Clean review/exam sessions preserve
   assistance evidence, old workspaces are resumable but uncertified, and saved
   recall answers are available through `:ForjaHistory`.
 - Mandatory hidden assessments, bounded staging, process-group cancellation,
@@ -31,8 +34,8 @@
   vectors before scheduling concept recall cards.
 - Keep short recall cards distinct from coding reimplementation tasks.
 - Store scheduled review events, diagnose repeated failures, identify weak
-  concepts, and generate additional validated practice variations. The initial
-  Rust transfer exercises are static, independently tested curriculum content.
+  concepts, and generate additional validated practice variations. Current
+  transfer exercises are static, independently tested curriculum content.
 - Track first attempt, hints, AI use, delayed recall and transfer evidence.
 
 ## Phase 4 — independent assessments
@@ -58,5 +61,3 @@
 2. Choose a vetted FSRS library and write an adapter test suite before shipping
    scheduled reviews.
 3. Add independent assessments for module projects and concept transfer.
-4. Add runnable transfer projects to the Python, Java, and Go tracks without
-   changing the curriculum/progress contract.

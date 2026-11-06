@@ -3,7 +3,7 @@
   "id": "java-foundations",
   "version": "1.0.0",
   "title": "Fundamentos de Java",
-  "description": "Tipos primitivos, control de flujo, métodos, collections y encapsulation con ejercicios verificables en el JDK estándar.",
+  "description": "Tipos primitivos, control de flujo, métodos, Collections y encapsulation con ejercicios base y variaciones verificables en el JDK estándar.",
   "language": "java",
   "modules": [
     {
@@ -24,7 +24,7 @@
       "id": "variables-primitives",
       "module": "java-basics",
       "title": "Variables y tipos primitivos",
-      "objective": "Representar cantidades monetarias en centavos y actualizar valores con tipos primitivos y bindings locales claros.",
+      "objective": "Elegir tipos primitivos para cantidades enteras y usar una variable local mutable sin ocultar los límites del tipo.",
       "concepts": [
         "java.variables",
         "java.primitive-types",
@@ -32,33 +32,42 @@
         "java.final"
       ],
       "prerequisites": [],
-      "explanation": "En Java cada variable tiene un tipo declarado. `int` sirve para enteros de 32 bits y `long` amplía el rango; el sufijo `L` hace explícito un literal `long`. Una variable local debe inicializarse antes de leerse. `final` impide reasignar el binding, aunque no vuelve inmutable un objeto referenciado. Para dinero conviene usar centavos enteros y decidir explícitamente cuándo se trunca la división.",
-      "example": "int subtotalCents = 1_099;\nfinal int discountPercent = 10;\nlong discountCents = (long) subtotalCents * discountPercent / 100;\nint discounted = subtotalCents - (int) discountCents;",
+      "explanation": "En Java cada variable tiene un tipo declarado. `int` representa enteros de 32 bits y `long` tiene un rango mayor; un sufijo `L` identifica un literal `long`. Una variable local debe inicializarse antes de leerse. `final` impide reasignar su variable, aunque no vuelve inmutable al objeto referenciado. Para cantidades monetarias se pueden guardar centavos como enteros. La suma normal de `int` puede desbordarse silenciosamente; `Math.addExact` falla de forma explícita cuando el resultado no cabe en el tipo.",
+      "example": "int laps = 12;\nfinal int metersPerLap = 400;\nlong distanceMeters = (long) laps * metersPerLap;\nSystem.out.println(distanceMeters);",
       "questions": [
-        "¿Por qué el cast a `long` debe ocurrir antes de multiplicar?",
-        "¿Qué protege `final` en un binding local y qué no protege en un objeto?"
+        "¿Por qué se amplía `laps` a `long` antes de multiplicar?",
+        "¿Qué diferencia observable hay entre `a + b` y `Math.addExact(a, b)` cuando la suma excede `int`?"
       ],
-      "guided": "Anota el tipo y rango de cada entrada. Escribe cada etapa monetaria como una variable distinta y observa en qué operación la división entera descarta centavos.",
+      "guided": "Declara un acumulador a partir del subtotal y actualízalo con el cargo. Revisa el dominio de cada entrada antes de sumar y prueba la suma cerca del mayor valor representable por `int`.",
       "requirements": [
-        "Implementa `addFee(int, int)` para sumar dos importes no negativos expresados en centavos.",
-        "Implementa `discountThenTax`: descuenta primero y calcula el impuesto sobre el resultado; cada porcentaje se trunca a centavos.",
-        "Implementa `taxThenDiscount` con el orden opuesto y conserva la misma regla de truncamiento. Las entradas cumplen subtotal entre 0 y 1_000_000_000 y porcentajes entre 0 y 100."
+        "Implementa únicamente `addFee(int subtotalCents, int feeCents)`: ambos argumentos son cantidades en centavos y deben ser no negativos.",
+        "Lanza `IllegalArgumentException` si cualquiera de los argumentos es negativo.",
+        "Devuelve la suma exacta; lanza `ArithmeticException` si el total excede `Integer.MAX_VALUE`. Mantén el cálculo en un binding local mutable."
       ],
-      "variation": "Modela un precio de inventario que recibe una tarifa fija, un descuento y un impuesto. Compara los totales cuando la tarifa se incorpora antes o después del porcentaje.",
+      "variation": "Implementa un método para actualizar un puntaje después de una ronda. Los tres argumentos son no negativos: resta primero la penalización y limita el resultado a cero; luego agrega la bonificación y limita el resultado a `Integer.MAX_VALUE`.",
       "hints": [
-        "Expresa todos los importes en centavos para evitar `double` en esta tarea.",
-        "¿Qué tipo representa los porcentajes y qué rango tienen?",
-        "El porcentaje requiere una multiplicación antes de dividir entre 100.",
-        "La multiplicación debe ampliarse a `long` antes de ejecutarse para evitar overflow intermedio.",
-        "Separa descuento e impuesto en variables locales para hacer visible el orden.",
-        "Calcula el descuento con `(long) subtotal * rate / 100`; el orden distinto puede cambiar un centavo por truncamiento."
+        "El contrato solo admite cantidades enteras no negativas; no conviertas centavos a `double`.",
+        "Valida ambas entradas antes de cambiar el acumulador.",
+        "Inicializa un `int` local con el subtotal.",
+        "Reasigna ese binding con el resultado de la suma para que el cambio de estado local sea explícito.",
+        "`Math.addExact` informa el overflow mediante `ArithmeticException`.",
+        "Comprueba tanto una suma válida pequeña como dos entradas cuya suma sea exactamente `Integer.MAX_VALUE`."
       ],
       "exercise": {
         "project_dir": "exercises/variables-primitives",
         "starter_dir": "starter",
         "assessment_file": "ForjaAssessment.java",
-        "solution_file": "Solution.java"
-      }
+        "solution_file": "Solution.java",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "Calcula el puntaje después de cada etapa, no solo la expresión final.",
+        "Las tres entradas representan cantidades no negativas.",
+        "Después de la penalización, el puntaje mínimo permitido es cero.",
+        "La bonificación puede exceder el rango de `int` antes de aplicar el límite.",
+        "Usa un `long` temporal para sumar y limita luego al máximo permitido.",
+        "Para 2 puntos, penalización 5 y bonificación 4, primero queda 0 y luego queda 4."
+      ]
     },
     {
       "id": "control-flow",
@@ -75,18 +84,19 @@
         "variables-primitives"
       ],
       "explanation": "Java ejecuta un bloque según condiciones booleanas. Una cadena `if/else if/else` expresa rangos ordenados; las condiciones se evalúan de arriba abajo, por eso un límite incluido en la primera rama ya no llega a las siguientes. `switch` resulta útil cuando se compara un valor discreto. Valida los valores fuera del dominio antes de aplicar las reglas normales.",
-      "example": "if (score < 0 || score > 100) {\n    return \"invalid\";\n}\nif (score >= 90) {\n    return \"excellent\";\n} else if (score >= 60) {\n    return \"passing\";\n}\nreturn \"retry\";",
+      "example": "if (!serviceAvailable) {\n    return \"offline\";\n}\nif (queueLength == 0) {\n    return \"idle\";\n}\nreturn queueLength > warningLimit ? \"busy\" : \"ready\";",
       "questions": [
         "¿Qué salida debe producir exactamente un score de 90?",
         "¿Por qué conviene validar el rango antes de clasificar el score?"
       ],
       "guided": "Haz una tabla con el valor anterior, el propio límite y el siguiente valor de cada rango. Después ordena las condiciones desde el umbral mayor.",
       "requirements": [
-        "Implementa `shippingCost`: hasta 500 gramos cuesta 500 centavos; hasta 2000 cuesta 1200; más pesa 2500. Express agrega 700. Un peso negativo devuelve -1.",
-        "Implementa `scoreLabel(int)` para 0..100: 90+ `excellent`, 60..89 `passing`, 0..59 `retry`, fuera del rango `invalid`.",
-        "Implementa `scoreLabelOrMissing(Integer)`: `null` devuelve `missing`; los demás valores respetan las mismas bandas."
+        "Implementa `shippingCost(int grams, boolean express)`: un peso negativo devuelve -1; de 0 a 500 g cuesta 500 centavos, de 501 a 2000 g cuesta 1200 y más de 2000 g cuesta 2500.",
+        "Si `express` es true, agrega 700 centavos al costo base; con peso negativo conserva la salida -1.",
+        "Implementa `scoreLabel(int)` con `excellent` para 90..100, `passing` para 60..89, `retry` para 0..59 y `invalid` fuera de 0..100.",
+        "Implementa `scoreLabelOrMissing(Integer)`: `null` devuelve `missing`; los demás valores usan exactamente las bandas de `scoreLabel`."
       ],
-      "variation": "Clasifica la latencia de una API en `fast` (0..50), `normal` (51..200), `slow` (201 en adelante) o `invalid` para valores negativos.",
+      "variation": "Clasifica la latencia de una API en `fast` (0..50 ms), `normal` (51..200 ms), `slow` (201 ms en adelante) o `invalid` para valores negativos.",
       "hints": [
         "Enumera las salidas posibles antes de escribir condiciones.",
         "¿Qué debe pasar con valores negativos o mayores que 100?",
@@ -99,8 +109,17 @@
         "project_dir": "exercises/control-flow",
         "starter_dir": "starter",
         "assessment_file": "ForjaAssessment.java",
-        "solution_file": "Solution.java"
-      }
+        "solution_file": "Solution.java",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "Escribe una tabla con el último valor de cada banda y el primero de la siguiente.",
+        "El valor negativo no pertenece a ninguna categoría válida.",
+        "Evalúa primero el límite superior de la banda más rápida.",
+        "El segundo límite determina dónde termina `normal`.",
+        "Los valores restantes válidos pertenecen a `slow`.",
+        "Prueba -1, 0, 50, 51, 200 y 201 para cubrir los límites."
+      ]
     },
     {
       "id": "methods",
@@ -117,18 +136,18 @@
         "control-flow"
       ],
       "explanation": "Un método Java declara tipo de retorno, nombre y parámetros. El contrato debe aclarar el dominio de entrada y qué significa cada salida especial. Los métodos `static` se invocan desde la clase sin crear un objeto. Extraer un cálculo con un nombre preciso reduce duplicación; el método que lo compone sigue el orden definido por el problema.",
-      "example": "static int applyTax(int cents, int ratePercent) {\n    long tax = (long) cents * ratePercent / 100;\n    return Math.toIntExact(cents + tax);\n}\n\nstatic int total(int subtotal, int rate) {\n    return applyTax(subtotal, rate);\n}",
+      "example": "static int minutesToSeconds(int minutes) {\n    return Math.multiplyExact(minutes, 60);\n}\n\nstatic int tripDuration(int hours, int extraMinutes) {\n    int totalMinutes = Math.addExact(Math.multiplyExact(hours, 60), extraMinutes);\n    return minutesToSeconds(totalMinutes);\n}",
       "questions": [
-        "¿Qué documenta el tipo de retorno de un método?",
-        "¿Por qué la conversión a `long` ocurre antes de multiplicar?"
+        "¿Qué información comunica el tipo de retorno de un método?",
+        "¿Qué excepción puede lanzar `Math.multiplyExact` y por qué conviene que el contrato la haga visible?"
       ],
       "guided": "Escribe primero la precondición y el resultado inválido. Después divide la solución en cálculos que puedas probar por separado.",
       "requirements": [
-        "Implementa `percentageOf` para cantidades no negativas y tasas de 0..100; usa aritmética amplia antes de dividir.",
-        "Implementa `checkoutTotal`: descuento primero, luego impuesto calculado sobre el importe descontado; las operaciones se truncan a centavos.",
-        "Implementa `readingMinutes`: redondea hacia arriba. Devuelve -1 para palabras negativas o ritmo menor o igual a cero."
+        "Implementa `percentageOf(int amountCents, int ratePercent)` para una cantidad no negativa y una tasa de 0..100. Devuelve el porcentaje truncado a centavos; valores fuera del dominio lanzan `IllegalArgumentException`.",
+        "Implementa `checkoutTotal`: valida el subtotal y ambas tasas con el mismo dominio, aplica descuento antes del impuesto y trunca cada porcentaje a centavos. Lanza `ArithmeticException` si el total final no cabe en `int`.",
+        "Implementa `readingMinutes`: redondea palabras/ritmo hacia arriba. Devuelve -1 para palabras negativas o ritmo menor o igual a cero."
       ],
-      "variation": "Calcula cuántas cajas se necesitan para empacar artículos, redondeando hacia arriba y rechazando un tamaño de caja igual a cero.",
+      "variation": "Una API pagina una lista de registros. Implementa `pageRange(totalItems, pageNumber, pageSize)` que devuelve los índices `[start, endExclusive)` sin overflow; entradas inválidas devuelven `{-1, -1}` y páginas posteriores al final devuelven un rango vacío al final.",
       "hints": [
         "Escribe las entradas, la salida y el significado del caso inválido.",
         "Una función auxiliar puede calcular el descuento antes de aplicar el impuesto.",
@@ -141,14 +160,23 @@
         "project_dir": "exercises/methods",
         "starter_dir": "starter",
         "assessment_file": "ForjaAssessment.java",
-        "solution_file": "Solution.java"
-      }
+        "solution_file": "Solution.java",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "El número de página empieza en cero; define primero las entradas inválidas.",
+        "Calcula `pageNumber * pageSize` con un tipo más amplio que `int`.",
+        "Si el inicio está después del total, ubica la página vacía al final.",
+        "El final exclusivo es el menor entre el total y el inicio más el tamaño.",
+        "Devuelve un arreglo nuevo de dos posiciones.",
+        "Usa `long` para inicio y fin, luego conviértelos solo después de acotarlos a `totalItems`."
+      ]
     },
     {
       "id": "arrays-collections",
       "module": "java-collections",
-      "title": "Arrays y collections",
-      "objective": "Procesar arrays y elegir collections de Java según las operaciones requeridas, preservando orden y reglas de igualdad.",
+      "title": "Arrays y Collections",
+      "objective": "Procesar arrays y elegir Collections de Java según las operaciones requeridas, preservando orden y reglas de igualdad.",
       "concepts": [
         "java.arrays",
         "java.generics",
@@ -160,18 +188,18 @@
         "methods"
       ],
       "explanation": "Un array tiene longitud fija y almacena valores de un mismo tipo. `List<T>` modela una secuencia redimensionable; `Set<T>` representa elementos únicos y `Map<K,V>` relaciona claves con valores. Los generics conservan información de tipos durante la compilación. `LinkedHashSet` mantiene orden de inserción, mientras que `HashMap` sirve para acumular conteos sin depender del orden de iteración.",
-      "example": "Set<String> unique = new LinkedHashSet<>();\nfor (String value : values) {\n    if (value != null) unique.add(value);\n}\nList<String> result = new ArrayList<>(unique);",
+      "example": "List<String> routes = List.of(\"/health\", \"/orders\", \"/metrics\");\nfor (String route : routes) {\n    if (route.startsWith(\"/health\")) {\n        System.out.println(\"health route: \" + route);\n    }\n}",
       "questions": [
         "¿Qué diferencia práctica tiene `List` frente a un array?",
         "¿Qué garantiza `LinkedHashSet` que `HashSet` no garantiza?"
       ],
       "guided": "Para cada función decide si el problema necesita índices, orden repetible, unicidad o búsqueda por clave. Escoge la colección después de nombrar esa operación.",
       "requirements": [
-        "Implementa `sum(int[])` como una suma `long`; `null` produce 0.",
-        "Implementa `uniqueInOrder(List<String>)`: conserva la primera aparición de cada string, ignora elementos null y devuelve una lista nueva; una lista null produce una lista vacía.",
-        "Implementa `wordCounts(List<String>)`: cuenta cada string exacto, ignora elementos null y devuelve un `Map`; el orden del mapa no importa."
+        "Implementa `sum(int[])` con un acumulador `long`; el argumento `null` produce 0.",
+        "Implementa `uniqueInOrder(List<String>)`: conserva la primera aparición de cada string exacto, ignora elementos `null`, devuelve una lista nueva y no modifica la entrada. Una lista `null` produce una lista vacía.",
+        "Implementa `wordCounts(List<String>)`: cuenta strings exactos distinguiendo mayúsculas, ignora elementos `null` y devuelve un `Map<String, Integer>`. Una lista `null` produce un mapa vacío; el orden del mapa no importa."
       ],
-      "variation": "Procesa códigos de productos de un lote: elimina duplicados conservando el orden original y calcula cuántas veces aparece cada código.",
+      "variation": "A partir de una lista de strings, encuentra el string exacto con mayor frecuencia; la comparación distingue mayúsculas y minúsculas. Si hay empate, devuelve el que apareció primero; ignora elementos `null` y devuelve `null` si la lista es nula o no contiene strings.",
       "hints": [
         "Separa mentalmente los casos array, unicidad y conteo.",
         "Un acumulador `long` conserva la suma aunque exceda `int`.",
@@ -184,13 +212,22 @@
         "project_dir": "exercises/arrays-collections",
         "starter_dir": "starter",
         "assessment_file": "ForjaAssessment.java",
-        "solution_file": "Solution.java"
-      }
+        "solution_file": "Solution.java",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "La frecuencia no basta para resolver empates: también necesitas conservar el orden original.",
+        "Puedes contar las apariciones en un `Map` y luego recorrer la lista original.",
+        "Los elementos `null` no participan ni en conteos ni en desempates.",
+        "Actualiza la mejor palabra solo al encontrar un conteo estrictamente mayor.",
+        "Ese recorrido posterior mantiene la primera palabra empatada.",
+        "Primero construye `Map<String, Integer>`; después busca la primera entrada cuyo conteo supere el máximo actual."
+      ]
     },
     {
       "id": "classes-encapsulation",
       "module": "java-objects",
-      "title": "Classes y encapsulation",
+      "title": "Clases y encapsulation",
       "objective": "Encapsular estado mutable detrás de métodos con invariantes explícitas y resultados verificables.",
       "concepts": [
         "java.classes",
@@ -202,18 +239,18 @@
         "arrays-collections"
       ],
       "explanation": "Una clase agrupa estado y comportamiento. `private` evita que el código externo cambie directamente los campos, y los métodos públicos forman la API. El constructor establece el estado inicial; cada mutación debe mantener los invariantes. `final` puede fijar la referencia del owner, mientras que el balance sigue cambiando a través de operaciones validadas.",
-      "example": "static final class Wallet {\n    private final String owner;\n    private int balanceCents;\n\n    Wallet(String owner, int initialCents) {\n        this.owner = owner;\n        this.balanceCents = initialCents;\n    }\n}",
+      "example": "final class Thermostat {\n    private final String room;\n    private int targetCelsius;\n\n    Thermostat(String room, int targetCelsius) {\n        if (room == null || room.isBlank() || targetCelsius < 5 || targetCelsius > 35) {\n            throw new IllegalArgumentException(\"invalid thermostat state\");\n        }\n        this.room = room;\n        this.targetCelsius = targetCelsius;\n    }\n\n    boolean setTarget(int next) {\n        if (next < 5 || next > 35) return false;\n        targetCelsius = next;\n        return true;\n    }\n}",
       "questions": [
         "¿Por qué un campo `private` reduce estados inválidos?",
         "¿Qué diferencia hay entre hacer `final` un campo y hacer inmutable al objeto?"
       ],
-      "guided": "Escribe los invariantes antes de implementar: balance nunca negativo, owner no cambia y operaciones inválidas no modifican el estado.",
+      "guided": "Escribe primero los invariantes: owner no vacío y balance no negativo. Después identifica qué entradas puede rechazar cada operación, y verifica que el estado no cambie cuando se rechaza.",
       "requirements": [
-        "Implementa `Solution.Wallet` con owner no vacío y balance inicial no negativo; constructor inválido lanza `IllegalArgumentException`.",
-        "Expón `owner()` y `balanceCents()` sin hacer públicos los campos.",
-        "`deposit` y `withdraw` devuelven false para cantidades no positivas, balance insuficiente o overflow; en esos casos no cambian el balance. Operaciones válidas devuelven true."
+        "Implementa `Solution.Wallet` con `owner` no nulo ni en blanco y `initialCents` no negativo. El constructor lanza `IllegalArgumentException` si no se cumple alguno de esos requisitos.",
+        "Mantén los campos privados; expón el owner con `owner()` y el saldo con `balanceCents()`.",
+        "`deposit` y `withdraw` devuelven true solo para cantidades positivas que mantienen un saldo dentro de 0..`Integer.MAX_VALUE`; cualquier operación inválida devuelve false y deja el saldo intacto."
       ],
-      "variation": "Modela un cupo de inventario con una cantidad reservada. Las operaciones deben impedir reservas superiores al stock y permitir liberar solo unidades que estén reservadas.",
+      "variation": "Implementa `Solution.SeatPool(int capacity)`: una capacidad negativa lanza `IllegalArgumentException`. Expón `capacity()` y `reserved()`. `reserve` y `release` aceptan solo cantidades positivas que mantienen `0 <= reserved <= capacity`; los fallos devuelven false y no alteran el estado.",
       "hints": [
         "Anota los invariantes que deben permanecer ciertos después de cada método.",
         "Los campos deben ser `private`; la mutación ocurre desde métodos de la clase.",
@@ -226,8 +263,17 @@
         "project_dir": "exercises/classes-encapsulation",
         "starter_dir": "starter",
         "assessment_file": "ForjaAssessment.java",
-        "solution_file": "Solution.java"
-      }
+        "solution_file": "Solution.java",
+        "variation_dir": "transfer"
+      },
+      "variation_hints": [
+        "El invariante central relaciona dos campos: capacidad y cantidad reservada.",
+        "La capacidad no cambia; la cantidad reservada sí cambia mediante métodos.",
+        "Antes de reservar, compara la cantidad solicitada con los asientos disponibles.",
+        "Antes de liberar, no permitas liberar más asientos de los reservados.",
+        "Las operaciones inválidas deben dejar ambos valores intactos.",
+        "Representa el pool con `private final capacity` y `private reserved`; devuelve `boolean` para aceptar o rechazar cada mutación."
+      ]
     }
   ]
 }
