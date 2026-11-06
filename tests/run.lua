@@ -170,6 +170,19 @@ end
 vim.api.nvim_cmd({ cmd = "Forja" }, {})
 check(ui.current and vim.api.nvim_buf_is_valid(ui.current.buf), ":Forja opens the native dashboard")
 check(vim.fn.maparg("a", "n", false, true).buffer == 1, "dashboard exposes active recall as a buffer-local action")
+local initial_dashboard = table.concat(vim.api.nvim_buf_get_lines(ui.current.buf, 0, -1, false), "\n")
+check(initial_dashboard:find("Aún no has elegido una ruta", 1, true), "a fresh dashboard does not silently select the alphabetically first course")
+local old_select_for_track = vim.ui.select
+vim.ui.select = function(items, _, callback)
+  for _, item in ipairs(items) do
+    if item.id == "rust-foundations" then callback(item); return end
+  end
+  error("Rust track was missing from the initial track picker")
+end
+commands.start()
+vim.ui.select = old_select_for_track
+check(storage.load().active_track == "rust-foundations" and ui.lesson_view ~= nil,
+  "starting from an empty dashboard asks the learner to choose a track")
 ui.close()
 local export_path = fs.join(temporary, "export/progress-copy.json")
 commands.export(export_path)
@@ -202,6 +215,15 @@ check(vim.wo[ui.lesson_view.win].wrap and vim.wo[ui.lesson_view.win].linebreak, 
 local first_lesson_text = table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n")
 check(first_lesson_text:find("bindings", 1, true) and not first_lesson_text:find("rust.binding", 1, true), "lesson concepts use learner-facing labels instead of raw IDs")
 check(not first_lesson_text:find(exercise_workspace, 1, true), "lesson content does not expose the local workspace path")
+check(first_lesson_text:find("[1 Reto]", 1, true) and first_lesson_text:find("2 Idea", 1, true),
+  "lesson reading pane starts on a clearly labeled challenge section")
+vim.api.nvim_set_current_win(ui.lesson_view.win)
+vim.cmd("normal 2")
+local concept_text = table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n")
+check(concept_text:find("# Concepto", 1, true) and concept_text:find("[2 Idea]", 1, true)
+  and not concept_text:find("# Reto", 1, true), "numbered lesson tabs replace the content and mark the active section")
+vim.cmd("normal 1")
+vim.api.nvim_set_current_win(ui.lesson_view.return_win)
 local has_lesson_run_mapping = false
 for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(ui.lesson_view.buf, "n")) do
   if mapping.lhs == "r" then has_lesson_run_mapping = true end
@@ -265,13 +287,16 @@ local reached_visible_attempt = vim.wait(20000, function()
 end, 25)
 check(reached_visible_attempt, "ForjaRun executes visible Cargo tests asynchronously")
 check(vim.api.nvim_get_current_win() == focus_before_run, "test completion does not steal editor focus")
+check(ui.output_view and ui.output_view.kind == "split" and vim.api.nvim_win_is_valid(ui.output_view.win),
+  "test feedback stays visible in a persistent bottom pane on a wide screen")
 local visible_result_text = table.concat(ui.last_result.lines, "\n")
 check(ui.last_result.title:find("Tests visibles", 1, true) and visible_result_text:find("test result: FAILED", 1, true),
   "visible assertion failures retain inspectable Cargo diagnostics")
 vim.api.nvim_cmd({ cmd = "ForjaResult" }, {})
-check(ui.current and vim.api.nvim_win_is_valid(ui.current.win), "ForjaResult opens stored feedback on demand")
-ui.close("float")
-check(ui.lesson_view and vim.api.nvim_win_is_valid(ui.lesson_view.win), "closing results preserves the lesson view")
+check(ui.output_view and vim.api.nvim_win_is_valid(ui.output_view.win), "ForjaResult reopens stored feedback in the persistent result pane")
+vim.api.nvim_cmd({ cmd = "ForjaClose" }, {})
+check(ui.output_view == nil and ui.lesson_view and vim.api.nvim_win_is_valid(ui.lesson_view.win),
+  "ForjaClose from the result pane closes feedback while preserving the lesson")
 run_command()
 local reached_first_attempt = vim.wait(20000, function()
   local current = progress.load()
@@ -284,7 +309,7 @@ check(state.tracks[track.id].lessons[lesson.id].completed ~= true, "incorrect as
 check(state.tracks[track.id].lessons[lesson.id].first_assessment_success == false, "first assessment outcome is preserved")
 local assessment_result_text = table.concat(ui.last_result.lines, "\n")
 check(assessment_result_text:find("La evaluación no se aprobó", 1, true)
-  and not assessment_result_text:find("assessment_distinguishes_rounding_order", 1, true),
+  and not assessment_result_text:find("assessment_fee_and_boundary_values", 1, true),
   "failed hidden assessments provide guidance without exposing hidden assertions")
 local next_before_pass = state.current_lesson
 commands.next()

@@ -1,4 +1,4 @@
-local M = { current = nil, lesson_view = nil, last_result = nil, views = {}, resize_group = nil }
+local M = { current = nil, lesson_view = nil, output_view = nil, last_result = nil, views = {}, resize_group = nil }
 
 local function clamp(value, low, high)
   if high < low then return high end
@@ -39,9 +39,19 @@ local function float_config(title)
   return config
 end
 
-local function set_lesson_bar(win, mode)
-  vim.wo[win].winbar = " Forja · q cerrar · r tests · t evaluar · a recordar · h pista"
-    .. ((mode == "practice" or mode == "review") and " · b volver" or "")
+local function set_lesson_bar(win, view)
+  if view.exam_active or view.mode == "review" or view.mode == "exam" or view.mode == "practice" then
+    vim.wo[win].winbar = " Forja · intento independiente · r tests · t evaluar · q código"
+      .. ((view.mode == "practice" or view.mode == "review") and " · b volver" or "")
+    return
+  end
+  local labels = { "Reto", "Idea", "Ejemplo", "Recall", "Guía" }
+  local tabs = {}
+  for index, label in ipairs(labels) do
+    table.insert(tabs, (view.section_index == index and "[" or "") .. index .. " " .. label
+      .. (view.section_index == index and "]" or ""))
+  end
+  vim.wo[win].winbar = " Forja · " .. table.concat(tabs, " · ") .. " · q código"
 end
 
 local function remove_view(role, restore_focus)
@@ -50,6 +60,7 @@ local function remove_view(role, restore_focus)
   M.views[role] = nil
   if role == "float" then M.current = nil end
   if role == "lesson" then M.lesson_view = nil end
+  if role == "output" then M.output_view = nil end
   if view.win and vim.api.nvim_win_is_valid(view.win) then
     pcall(vim.api.nvim_win_close, view.win, true)
   end
@@ -64,18 +75,25 @@ end
 function M.close(role)
   if role then remove_view(role, true); return end
   remove_view("float", false)
+  remove_view("output", false)
   remove_view("lesson", true)
 end
 
 local function resize_view(view)
   if not view or not view.win or not vim.api.nvim_win_is_valid(view.win) then return end
+  if view.is_output and view.kind == "split" then
+    local max_height = math.max(1, vim.o.lines - 5)
+    local min_height = math.min(4, max_height)
+    vim.api.nvim_win_set_height(view.win, clamp(math.floor(vim.o.lines * 0.28), min_height, math.min(12, max_height)))
+    return
+  end
   local columns = vim.o.columns
   if view.is_lesson and view.kind == "split" and columns < 90 then
     local old_win = view.win
     local keep_focus = vim.api.nvim_get_current_win() == old_win
     local win = vim.api.nvim_open_win(view.buf, keep_focus, float_config(view.title))
     set_reading_options(win)
-    set_lesson_bar(win, view.mode)
+    set_lesson_bar(win, view)
     view.win, view.kind = win, "float"
     pcall(vim.api.nvim_win_close, old_win, true)
     return
@@ -91,7 +109,7 @@ local function resize_view(view)
     vim.api.nvim_win_set_buf(win, view.buf)
     vim.api.nvim_win_set_width(win, clamp(math.floor(columns * 0.4), 32, 64))
     set_reading_options(win)
-    set_lesson_bar(win, view.mode)
+    set_lesson_bar(win, view)
     view.win, view.kind = win, "split"
     pcall(vim.api.nvim_win_close, old_win, true)
     if not keep_focus and view.return_win and vim.api.nvim_win_is_valid(view.return_win) then
@@ -123,6 +141,7 @@ local function install_lifecycle()
           M.views[role] = nil
           if role == "float" then M.current = nil end
           if role == "lesson" then M.lesson_view = nil end
+          if role == "output" then M.output_view = nil end
         end
       end
     end,
@@ -162,7 +181,7 @@ function M.open(lines, title, opts)
   return buf, win
 end
 
-function M.open_lesson(lines, title, code_win, mode, exam_active, practice_available)
+function M.open_lesson(lines, title, code_win, mode, exam_active, practice_available, section_index)
   remove_view("lesson", false)
   code_win = code_win or vim.api.nvim_get_current_win()
   local buf = make_buffer(lines, "Forja " .. title)
@@ -174,14 +193,14 @@ function M.open_lesson(lines, title, code_win, mode, exam_active, practice_avail
     vim.api.nvim_win_set_buf(win, buf)
     vim.api.nvim_win_set_width(win, clamp(math.floor(vim.o.columns * 0.4), 32, 64))
     set_reading_options(win)
-    set_lesson_bar(win, mode)
-    view = { buf = buf, win = win, kind = "split", return_win = code_win, is_lesson = true, title = title, mode = mode }
+    view = { buf = buf, win = win, kind = "split", return_win = code_win, is_lesson = true, title = title, mode = mode, exam_active = exam_active, section_index = section_index or 1 }
+    set_lesson_bar(win, view)
     vim.api.nvim_set_current_win(code_win)
   else
     local win = vim.api.nvim_open_win(buf, true, float_config(title))
     set_reading_options(win)
-    set_lesson_bar(win, mode)
-    view = { buf = buf, win = win, kind = "float", return_win = code_win, is_lesson = true, title = title, mode = mode }
+    view = { buf = buf, win = win, kind = "float", return_win = code_win, is_lesson = true, title = title, mode = mode, exam_active = exam_active, section_index = section_index or 1 }
+    set_lesson_bar(win, view)
   end
   M.views.lesson, M.lesson_view = view, view
   bind_close(buf, "lesson")
@@ -208,8 +227,75 @@ function M.open_lesson(lines, title, code_win, mode, exam_active, practice_avail
   return view
 end
 
+function M.update_lesson(lines, title, section_index)
+  local view = M.lesson_view
+  if not view or not vim.api.nvim_buf_is_valid(view.buf) then return false end
+  vim.bo[view.buf].modifiable = true
+  vim.api.nvim_buf_set_lines(view.buf, 0, -1, false, lines)
+  vim.bo[view.buf].modified = false
+  vim.bo[view.buf].modifiable = false
+  if title then
+    view.section = title
+    view.section_index = section_index or view.section_index
+    if view.win and vim.api.nvim_win_is_valid(view.win) then
+      set_lesson_bar(view.win, view)
+    end
+  end
+  if view.win and vim.api.nvim_win_is_valid(view.win) then
+    vim.api.nvim_win_set_cursor(view.win, { 1, 0 })
+  end
+  return true
+end
+
+function M.open_output(title, lines)
+  local previous = vim.api.nvim_get_current_win()
+  local view = M.output_view
+  if view and view.win and vim.api.nvim_win_is_valid(view.win) and view.kind == "split" then
+    vim.bo[view.buf].modifiable = true
+    vim.api.nvim_buf_set_lines(view.buf, 0, -1, false, lines)
+    vim.bo[view.buf].modifiable = false
+    view.title = title
+    if vim.api.nvim_win_is_valid(view.win) then
+      vim.wo[view.win].winbar = " Forja · " .. title .. " · q cerrar · r tests · t evaluación"
+    end
+    if previous ~= view.win and vim.api.nvim_win_is_valid(previous) then vim.api.nvim_set_current_win(previous) end
+    return view
+  end
+
+  if vim.o.columns < 90 or vim.o.lines < 22 then
+    M.open(lines, title, { focus = true, return_win = previous })
+    M.current.is_output = true
+    M.current.title = title
+    return M.current
+  end
+
+  local source_win = M.lesson_view and M.lesson_view.return_win
+  if not source_win or not vim.api.nvim_win_is_valid(source_win) then source_win = previous end
+  if vim.api.nvim_win_is_valid(source_win) then vim.api.nvim_set_current_win(source_win) end
+  vim.cmd("botright 10split")
+  local win = vim.api.nvim_get_current_win()
+  local buf = make_buffer(lines, "Forja Resultados")
+  vim.api.nvim_win_set_buf(win, buf)
+  local max_height = math.max(1, vim.o.lines - 5)
+  local min_height = math.min(4, max_height)
+  vim.api.nvim_win_set_height(win, clamp(math.floor(vim.o.lines * 0.28), min_height, math.min(12, max_height)))
+  set_reading_options(win)
+  vim.wo[win].winbar = " Forja · " .. title .. " · q cerrar · r tests · t evaluación"
+  local output = { buf = buf, win = win, kind = "split", return_win = previous, title = title, is_output = true }
+  M.views.output, M.output_view = output, output
+  bind_close(buf, "output")
+  vim.keymap.set("n", "r", function() vim.cmd("ForjaRun") end,
+    { buffer = buf, silent = true, desc = "Run visible tests" })
+  vim.keymap.set("n", "t", function() vim.cmd("ForjaTest") end,
+    { buffer = buf, silent = true, desc = "Run assessment" })
+  install_lifecycle()
+  if vim.api.nvim_win_is_valid(previous) then vim.api.nvim_set_current_win(previous) end
+  return output
+end
+
 function M.result(title, lines)
   M.last_result = { title = title, lines = lines }
+  M.open_output(title, lines)
 end
 
 function M.show_result()
@@ -217,7 +303,7 @@ function M.show_result()
     M.notify("todavía no hay resultados; ejecuta :ForjaRun o :ForjaTest primero", vim.log.levels.WARN)
     return
   end
-  return M.open(M.last_result.lines, M.last_result.title)
+  return M.open_output(M.last_result.title, M.last_result.lines)
 end
 
 function M.notify(message, level)

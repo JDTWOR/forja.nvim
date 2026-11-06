@@ -68,14 +68,18 @@ for _, track_id in ipairs({ "python-foundations", "java-foundations", "go-founda
   local lesson_text = table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n")
   local expected_fence = "```" .. lesson.language
   local expected_source = lesson.exercise._manifest.source_file or "src/lib.rs"
-  check(lesson_text:find(expected_fence, 1, true) and lesson_text:find(expected_source, 1, true),
-    track_id .. " lesson displays its source path and language-specific code fence")
+  check(lesson_text:find(expected_source, 1, true), track_id .. " challenge displays its source path")
   local has_practice_key = false
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(ui.lesson_view.buf, "n")) do
     if mapping.lhs == "p" then has_practice_key = true end
   end
   check(has_practice_key == (lesson.exercise._variation_dir ~= nil),
     track_id .. " advertises transfer practice only when a runnable exercise exists")
+  vim.api.nvim_set_current_win(ui.lesson_view.win)
+  vim.cmd("normal 3")
+  local example_text = table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n")
+  check(example_text:find("# Ejemplo orientativo", 1, true)
+    and example_text:find(expected_fence, 1, true), track_id .. " opens a correctly fenced language example")
   ui.close()
 end
 

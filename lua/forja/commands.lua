@@ -97,7 +97,7 @@ local function get_track(state, requested)
     end
     if requested then ui.notify("ruta desconocida: " .. requested, vim.log.levels.ERROR); return nil end
   end
-  return tracks[1]
+  return nil
 end
 
 local function ordered(track)
@@ -178,7 +178,10 @@ end
 local function active_context(state)
   if review_session then return review_session.track, review_session.lesson, review_session.path, true end
   local track = get_track(state)
-  if not track then return nil end
+  if not track then
+    ui.notify("elige una ruta con :ForjaTracks o :ForjaStart", vim.log.levels.INFO)
+    return nil
+  end
   local lesson = state.current_lesson and curriculum.lesson(track, state.current_lesson) or nil
   lesson = lesson or progress.first_incomplete(track, state)
   if not lesson then
@@ -191,7 +194,20 @@ local function active_context(state)
 end
 
 local function status_text(state, track, lesson)
-  if not track then return { "Sin una ruta activa. Usa `:ForjaTracks` para elegir una." } end
+  if not track then
+    return {
+      "# Forja.nvim",
+      "",
+      "Aún no has elegido una ruta de aprendizaje.",
+      "",
+      "Siguiente acción: s · elegir ruta y empezar    t · explorar rutas",
+      "",
+      "Forja incluye cursos de Rust, Python, Java y Go.",
+      "",
+      "Atajos: s empezar · t rutas · p progreso · q cerrar",
+      "Comandos: :ForjaStart [track-id] · :ForjaTracks · :ForjaHealth",
+    }
+  end
   local done, total = 0, #ordered(track)
   local track_progress = progress.track(state, track.id)
   for _, item in ipairs(ordered(track)) do
@@ -208,7 +224,7 @@ local function status_text(state, track, lesson)
     "",
     "Siguiente acción: " .. (lesson and "s · continuar · l · abrir lección · :ForjaRecall · recuperar" or "t · explorar rutas"),
     "",
-    "Revisiones programadas: el scheduler aún no está habilitado (consulta docs/roadmap.md).",
+    "Repaso de memoria: :ForjaReview crea un workspace limpio; la programación espaciada está pendiente.",
     "",
     "Conceptos con intentos fallidos:",
   }
@@ -231,7 +247,7 @@ local function status_text(state, track, lesson)
   if #state.history == 0 then table.insert(lines, "- Sin intentos aún.") end
   vim.list_extend(lines, {
     "",
-    "Atajos: s comenzar · t rutas · l lección · n siguiente · p progreso · r repaso · q cerrar",
+    "Atajos: s continuar · t rutas · l lección · n siguiente · p progreso · a recordar · r repasar · q cerrar",
     "Comandos: :ForjaRecall · :ForjaRun · :ForjaTest · :ForjaHint · :ForjaExam · :ForjaHealth",
   })
   return lines
@@ -275,6 +291,17 @@ function M.start(track_id)
   local state = load_state()
   if not state then return end
   if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
+  if not track_id and not state.active_track then
+    local tracks, err = curriculum.list()
+    if not tracks then ui.notify(err, vim.log.levels.ERROR); return end
+    vim.ui.select(tracks, {
+      prompt = "Elige una ruta de aprendizaje:",
+      format_item = function(track) return string.format("%s · %d lecciones", track.title, #track.lessons) end,
+    }, function(track)
+      if track then M.start(track.id) end
+    end)
+    return
+  end
   local track = get_track(state, track_id)
   if not track then return end
   local lesson = progress.first_incomplete(track, state)
@@ -297,7 +324,7 @@ function M.lesson(lesson_id)
   end
   if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   local track = get_track(state)
-  if not track then return end
+  if not track then ui.notify("elige una ruta con :ForjaTracks o :ForjaStart", vim.log.levels.INFO); return end
   local lesson = lesson_id and curriculum.lesson(track, lesson_id) or nil
   if lesson_id and not lesson then ui.notify("lección desconocida: " .. lesson_id, vim.log.levels.ERROR); return end
   if not lesson then lesson = state.current_lesson and curriculum.lesson(track, state.current_lesson) or progress.first_incomplete(track, state) end
@@ -310,7 +337,7 @@ function M.next()
   if not state then return end
   if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   local track = get_track(state)
-  if not track then return end
+  if not track then ui.notify("elige una ruta con :ForjaTracks o :ForjaStart", vim.log.levels.INFO); return end
   local current = state.current_lesson and curriculum.lesson(track, state.current_lesson) or nil
   if current then
     local record = progress.lesson_status(state, track.id, current.id)
@@ -331,7 +358,7 @@ function M.progress()
   local state = load_state()
   if not state then return end
   local track = get_track(state)
-  if not track then ui.notify("no se encontraron rutas de aprendizaje", vim.log.levels.WARN); return end
+  if not track then ui.notify("elige una ruta con :ForjaTracks o :ForjaStart", vim.log.levels.INFO); return end
   local track_progress = progress.track(state, track.id)
   local lines = { "# Progreso · " .. track.title, "" }
   for _, lesson in ipairs(ordered(track)) do
@@ -384,7 +411,7 @@ function M.review(lesson_id)
   local state = load_state()
   if not state then return end
   local track = get_track(state)
-  if not track then return end
+  if not track then ui.notify("elige una ruta con :ForjaTracks o :ForjaStart", vim.log.levels.INFO); return end
   local candidates = {}
   local track_progress = progress.track(state, track.id)
   for _, lesson in ipairs(ordered(track)) do
@@ -809,6 +836,10 @@ function M.close_view()
   local current = vim.api.nvim_get_current_win()
   if ui.current and ui.current.win == current then
     ui.close("float")
+  elseif ui.output_view and ui.output_view.win == current then
+    ui.close("output")
+  elseif ui.output_view then
+    ui.close("output")
   elseif ui.lesson_view then
     ui.close("lesson")
   else

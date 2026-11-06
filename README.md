@@ -10,10 +10,17 @@ implementation. AI is optional and the courses work offline.
 Forja currently includes four foundations tracks with five Spanish lessons
 each: Rust, Python, Java, and Go. All twenty lessons have editable starter code,
 visible tests, a separate assessment, and a reference solution verified against
-the tests. Rust also has runnable transfer projects for all five lessons; the
-other tracks include written variations, with separate runnable transfer
-projects planned. Lessons unlock only after their assessment passes. Hints and
-tutor use are recorded separately from test correctness.
+the tests. Each lesson in all four tracks also has a separate runnable transfer
+project with its own starter, visible tests, hidden assessment and reference
+solution. Lessons unlock only after their assessment passes. Hints and tutor use
+are recorded separately from test correctness.
+
+The study view keeps the source editor beside a focused lesson pane on wide
+terminals. Its numbered sections separate the challenge, concept, example,
+active recall and strategy; `1`–`5` switch sections without leaving the code.
+Test output remains in a bottom pane that updates on later runs and can be
+closed with `q`. On a fresh install the dashboard asks which track to start
+instead of choosing one implicitly.
 
 There is no shipped HTTP AI provider or spaced-repetition scheduler yet. The
 offline tutor uses a fixed Socratic question; `:ForjaReview` creates a clean
@@ -79,18 +86,21 @@ opts = { keymaps = { enabled = true, prefix = "<leader>F" } }
 
 ## First lesson walkthrough
 
-1. Run `:Forja` and press `s`, or start a track directly:
+1. Run `:Forja` and press `s` to choose a track, or start one directly:
    `:ForjaStart rust-foundations`, `:ForjaStart python-foundations`,
    `:ForjaStart java-foundations`, or `:ForjaStart go-foundations`.
-2. Read the lesson beside the opened source buffer on wide terminals. On
-   narrow terminals, the focused lesson view has `q`/`Esc` to return to code.
+2. Read the challenge beside the opened source buffer on wide terminals. Press
+   `1`–`5` in the lesson pane to switch between the challenge, concept, example,
+   recall and strategy. On narrow terminals, the focused lesson view has
+   `q`/`Esc` to return to code.
    `:ForjaClose` works from either pane. The workspace is under
    `stdpath("data")/forja/workspaces/`.
 3. Run `:ForjaTrustLocal` once for this exercise and confirm the prompt. The
    selected language toolchain executes local code with your user permissions.
-4. Run `:ForjaRun` for visible tests and compiler output. If the buffer has
-   unsaved changes, Forja asks whether to save and run or cancel. Fix your
-   implementation and run it again as needed.
+4. Run `:ForjaRun` for visible tests and compiler output. On wide terminals,
+   feedback stays in a bottom result pane and refreshes on later runs; use
+   `:ForjaResult` to reopen it. If the buffer has unsaved changes, Forja asks
+   whether to save and run or cancel. Fix your implementation and run it again.
 5. Run `:ForjaTest` for the hidden assessment in a temporary copy. A failure is
    saved as evidence but does not unlock the next lesson. A passing assessment
    unlocks it. The local machine owner can inspect course files; this is not a
@@ -109,13 +119,12 @@ creates a separate clean starter workspace with study explanations hidden. It
 will not overwrite your original solution. `:ForjaPractice` opens a dedicated
 transfer exercise with its own starter, visible tests, hidden assessment and
 saved evidence. Approve its local Cargo run separately with
-`:ForjaTrustLocal`. Transfer results do not unlock lessons. Run
-`:ForjaReview stop` to return to your persistent learner workspace; practice
-copies stay under `forja/reviews/`. Use `:ForjaHistory` to review saved answers
-or resume one of those workspaces. Resumed workspaces preserve their files but
-cannot establish new independent mastery; start a newly created review or exam
-workspace for that. Dedicated runnable transfer workspaces currently exist for
-the Rust lessons; Python, Java, and Go have written variation prompts.
+`:ForjaTrustLocal`. Transfer results do not unlock lessons. All four tracks have
+a dedicated runnable transfer workspace per lesson. Run `:ForjaReview stop` to
+return to your persistent learner workspace; practice copies stay under
+`forja/reviews/`. Use `:ForjaHistory` to review saved answers or resume one of
+those workspaces. Resumed workspaces preserve their files but cannot establish
+new independent mastery; start a newly created review or exam workspace for that.
 
 `:ForjaExam` starts a fresh workspace and hides the worked explanation, example,
 and guided strategy. Forja disables its hints and tutor until `:ForjaExam stop`,
@@ -218,11 +227,13 @@ to study; the plugin itself does not require the other compilers.
 The suite uses no Plenary or other Neovim test dependency. It covers graph
 validation, migrations, persistence, sticky assistance accounting, clean
 retrieval and exam gating, saved history and session restoration, restricted
-recall/review views, responsive UI cleanup and resize, assessment gating,
-unsaved-buffer safety, separate transfer workspaces, mandatory hidden assessments,
-workspace staging limits, process-group cancellation, and a total execution
-deadline. It checks that ten Rust starters compile without warnings and verifies
-all twenty foundation reference solutions against visible and assessment tests.
+recall/review views, tabbed lessons, first-run track selection, persistent test
+results, responsive UI cleanup and resize, assessment gating, unsaved-buffer
+safety, separate transfer workspaces, mandatory hidden assessments, workspace
+staging limits, process-group cancellation, and a total execution deadline. It
+checks that ten Rust starters compile without warnings and verifies all twenty
+foundation exercises and all twenty transfer variations against visible and
+hidden tests.
 
 ## Security limits
 
