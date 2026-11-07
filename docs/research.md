@@ -52,6 +52,27 @@ Source: [repository](https://github.com/kawre/leetcode.nvim/tree/4e8b368), [READ
    network-backed problem APIs are not suitable as a required dependency for
    local-first lessons.
 
+### UI follow-up inspection — 2026-11-07
+
+The source at the commit above was inspected directly after reviewing the
+three user-provided screenshots. The README confirms an in-editor dashboard
+and formatted descriptions, and the implementation makes the description a
+distinct left-side pane while keeping the editor adjacent. The stats page
+combines completion totals, a calendar and direct actions. The picker resolves
+an available provider rather than hardwiring one fuzzy-finder plugin.
+
+Forja adopts the useful interaction patterns: keep instructions adjacent to
+the code, put reading on the left and editing on the right, show the selected
+route and its verified progress in the picker, and make keyboard filtering
+available. Its dashboard progress bar is derived only from passed assessments;
+Forja does not draw a submission heatmap because it does not record daily
+submissions. No `leetcode.nvim` source or UI component code was copied.
+
+Source reviewed: [description split](https://github.com/kawre/leetcode.nvim/blob/4e8b368/lua/leetcode-ui/split/description.lua),
+[statistics page](https://github.com/kawre/leetcode.nvim/blob/4e8b368/lua/leetcode-ui/group/page/stats.lua),
+[picker provider resolution](https://github.com/kawre/leetcode.nvim/blob/4e8b368/lua/leetcode/picker/init.lua),
+and [README requirements and configuration](https://github.com/kawre/leetcode.nvim/blob/4e8b368/README.md).
+
 ## `olimorris/codecompanion.nvim` — `9cc3c13`
 
 Source: [repository](https://github.com/olimorris/codecompanion.nvim/tree/9cc3c13), [adapter resolver](https://github.com/olimorris/codecompanion.nvim/blob/9cc3c13/lua/codecompanion/adapters/init.lua), [README](https://github.com/olimorris/codecompanion.nvim/blob/9cc3c13/README.md), [license](https://github.com/olimorris/codecompanion.nvim/blob/9cc3c13/LICENSE).

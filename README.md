@@ -7,17 +7,22 @@ implementation. AI is optional and the courses work offline.
 
 ## Phase 1 status
 
-Forja currently includes four foundations tracks with five Spanish lessons
-each: Rust, Python, Java, and Go. All twenty lessons have editable starter code,
+Forja currently includes four foundations tracks: Rust, Python, Java, and Go.
+Rust, Java and Go have five Spanish lessons each; Python has nine, including a
+true beginner sequence. All twenty-four lessons have editable starter code,
 visible tests, a separate assessment, and a reference solution verified against
 the tests. Each lesson in all four tracks also has a separate runnable transfer
 project with its own starter, visible tests, hidden assessment and reference
 solution. Lessons unlock only after their assessment passes. Hints and tutor use
 are recorded separately from test correctness.
 
-The study view keeps the source editor beside a focused lesson pane on wide
-terminals. Its numbered sections separate the challenge, concept, example,
+The study view keeps the lesson on the left and source editor on the right on
+wide terminals. Its numbered sections separate the challenge, concept, example,
 active recall and strategy; `1`–`5` switch sections without leaving the code.
+Beginner Python lessons open on a short, staged explanation before asking the
+learner to solve the exercise. The language picker supports `/` search, progress
+counts and keyboard selection; the dashboard shows a progress bar based on
+verified lesson assessments.
 Test output remains in a bottom pane that updates on later runs and can be
 closed with `q`. On a fresh install the dashboard asks which track to start
 instead of choosing one implicitly.
@@ -92,9 +97,14 @@ opts = { keymaps = { enabled = true, prefix = "<leader>F" } }
    `:ForjaStart java-foundations`, or `:ForjaStart go-foundations`.
    Later, use `:ForjaLang` or dashboard key `l` to switch tracks. Each track
    keeps its own progress and workspace.
-2. Read the challenge beside the opened source buffer on wide terminals. Press
-   `1`–`5` in the lesson pane to switch between the challenge, concept, example,
-   recall and strategy. On narrow terminals, the focused lesson view has
+2. For Python, the first four lessons introduce program output, numeric
+   expressions, variables and then functions. The first lesson starts by
+   explaining what a `.py` file does and how `print(...)` produces terminal
+   output. Read that explanation in the left pane; the editable `solution.py`
+   starter is on the right on wide terminals. Press `1` for the exercise after
+   reading. The other numbered sections show the example, recall questions and
+   strategy. For the other tracks, press `1`–`5` to move between the challenge,
+   concept, example, recall and strategy. On narrow terminals, the focused lesson view has
    `q`/`Esc` to return to code.
    `:ForjaClose` works from either pane. The workspace is under
    `stdpath("data")/forja/workspaces/`.
@@ -163,6 +173,10 @@ Exam Mode only controls features inside Forja.
 | `:ForjaProgress` | Show lesson evidence, attempts, hints, and tutor assistance. |
 | `:ForjaHealth` | Check Neovim APIs, installed course toolchains, curriculum parsing, and progress storage. |
 | `:ForjaExport [path]` | Export the versioned progress JSON. With no path, prompts for one. |
+
+In the language picker, press `/` to filter by language or track name, `x` to
+clear the filter, `j`/`k` or arrows to move, and `Enter` to open the selected
+route. Progress shown there counts passed lesson assessments.
 
 ## OpenAI tutor configuration
 

@@ -105,6 +105,12 @@ local function ordered(track)
   return track and track._ordered_lessons or {}
 end
 
+local function progress_bar(done, total, width)
+  width = width or 16
+  local filled = total > 0 and math.floor((done / total) * width + 0.5) or 0
+  return string.rep("█", filled) .. string.rep("░", width - filled)
+end
+
 local function record_for(state, track, lesson)
   return progress.lesson_status(state, track.id, lesson.id)
 end
@@ -220,18 +226,22 @@ local function status_text(state, track, lesson)
     if track_progress.lessons[item.id] and track_progress.lessons[item.id].completed then done = done + 1 end
   end
   local lesson_shortcut = lesson and "  e abrir lección  ·" or ""
+  local lesson_position = 0
+  for index, item in ipairs(ordered(track)) do
+    if lesson and item.id == lesson.id then lesson_position = index; break end
+  end
   local lines = {
     "FORJA   /   APRENDIZAJE POR PRÁCTICA",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
     "TU RUTA",
     string.format("  %s   ·   %s", (track.language or ""):upper(), track.title),
-    string.format("  Progreso   %d de %d lecciones demostradas", done, total),
+    string.format("  Progreso   %s  %d/%d lecciones demostradas", progress_bar(done, total), done, total),
     state.exam_active and "  Exam Mode activo · tutor y pistas pausados" or "",
     "",
     "PRÓXIMO PASO",
     lesson and ("  [s] Continuar   ·   " .. lesson.title) or "  Ruta completada · [l] elegir otra ruta",
-    lesson and ("  Objetivo   " .. lesson.objective) or "",
+    lesson and string.format("  Lección %d/%d · %s", lesson_position, total, lesson.objective) or "",
     "",
     "CAMBIAR LENGUAJE     [l] Elegir Rust, Python, Java o Go",
     "TUTOR IA             [c] Configurar API key y proveedor",
@@ -294,7 +304,11 @@ local function track_entries(state, tracks)
     for _, lesson in ipairs(track.lessons or {}) do
       if track_progress.lessons[lesson.id] and track_progress.lessons[lesson.id].completed then completed = completed + 1 end
     end
-    table.insert(entries, { track = track, progress = string.format("%d/%d", completed, #track.lessons) })
+    table.insert(entries, {
+      track = track,
+      progress = string.format("%d/%d", completed, #track.lessons),
+      active = track.id == state.active_track,
+    })
   end
   return entries
 end

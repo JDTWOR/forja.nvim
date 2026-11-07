@@ -55,6 +55,18 @@ function M.validate(curriculum)
     for _, field in ipairs({ "questions", "requirements" }) do
       if not string_list(lesson[field], 1) then return nil, "lesson " .. lesson.id .. " must provide " .. field end
     end
+    if lesson.teaching_steps ~= nil and not string_list(lesson.teaching_steps, 1) then
+      return nil, "lesson " .. lesson.id .. " teaching_steps must be a non-empty list of strings"
+    end
+    if lesson.example_explanation ~= nil
+      and (type(lesson.example_explanation) ~= "string" or lesson.example_explanation == "") then
+      return nil, "lesson " .. lesson.id .. " example_explanation must be a non-empty string"
+    end
+    if lesson.start_section ~= nil
+      and (type(lesson.start_section) ~= "number" or lesson.start_section % 1 ~= 0
+        or lesson.start_section < 1 or lesson.start_section > 5) then
+      return nil, "lesson " .. lesson.id .. " start_section must be an integer from 1 to 5"
+    end
     if not string_list(lesson.hints, 6) then
       return nil, "lesson " .. lesson.id .. " must provide the six hint levels"
     end

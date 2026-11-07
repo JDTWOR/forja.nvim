@@ -38,7 +38,10 @@ Each lesson has a stable `id`, `module`, Spanish `title`, `objective`, stable
 concept tags, a list of prerequisite lesson IDs, `explanation`, `example`,
 retrieval `questions`, `guided` strategy, `requirements`, `variation`, six
 base `hints`, optional six `variation_hints` (the base ladder is reused when
-omitted), and an `exercise` reference. IDs accept lowercase letters,
+omitted), and an `exercise` reference. Optional `teaching_steps` provide a
+short ordered explanation; `example_explanation` adds context before the code;
+`start_section` (1–5) selects the first tab, which is useful when learners
+should understand an idea before seeing the challenge. IDs accept lowercase letters,
 numbers, dots, underscores and hyphens. Prefix IDs by language or domain to
 avoid collisions as tracks grow. A prerequisite graph must be acyclic.
 

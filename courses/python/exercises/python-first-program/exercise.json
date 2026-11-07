@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "python-first-program",
+  "runner": "python-unittest",
+  "package": "solution",
+  "source_file": "solution.py",
+  "public_test_file": "tests/test_public.py",
+  "assessment_file": "assessment.py",
+  "solution_file": "solution.py",
+  "timeout_ms": 30000
+}

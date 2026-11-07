@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "id": "python-foundations",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Fundamentos de Python",
-  "description": "Asignaciones, control de flujo, funciones, colecciones y parsing defensivo con la biblioteca estándar.",
+  "description": "Una progresión desde ejecutar el primer archivo hasta manejar valores, variables, funciones, control de flujo, colecciones y parsing defensivo con la biblioteca estándar.",
   "language": "python",
   "modules": [
     {
@@ -17,6 +17,240 @@
   ],
   "lessons": [
     {
+      "id": "python-first-program",
+      "module": "python-basics",
+      "title": "Tu primer programa: mostrar un mensaje",
+      "objective": "Entender que Python ejecuta instrucciones de arriba hacia abajo y usar print() para mostrar texto.",
+      "concepts": [
+        "python.print",
+        "python.strings",
+        "python.execution"
+      ],
+      "prerequisites": [],
+      "explanation": "print(...) muestra en la terminal el valor que recibe. El texto se escribe entre comillas; Python ejecuta las instrucciones del archivo de arriba hacia abajo.",
+      "teaching_steps": [
+        "Un archivo con extensión .py contiene instrucciones. Para que el programa diga algo, escribe print(\"Hola, mundo\").",
+        "print es una función que ya viene con Python. Una función es una operación con nombre; los paréntesis permiten darle el valor que necesita. Aquí, las comillas indican que Buenos días es texto.",
+        "Al ejecutar el archivo, Python procesa la primera instrucción, luego la siguiente. Cada print muestra una línea."
+      ],
+      "example_explanation": "Este programa muestra un saludo distinto al reto. Cambia el texto entre comillas y predice qué salida aparecerá.",
+      "example": "print(\"Buenos días\")",
+      "questions": [
+        "¿Qué trabajo realiza print(...) cuando se ejecuta el programa?",
+        "¿Qué indican las comillas alrededor de Hola, mundo?",
+        "Si hay dos llamadas a print en líneas distintas, ¿en qué orden aparecen?"
+      ],
+      "guided": "Escribe primero una sola llamada a print. Antes de evaluar, predice exactamente qué texto aparecerá y cuántas líneas tendrá.",
+      "requirements": [
+        "Al ejecutar solution.py, el programa debe mostrar exactamente Hola, mundo y terminar esa línea.",
+        "No agregues etiquetas, espacios extra ni una segunda línea."
+      ],
+      "variation": "Escribe un programa que muestre dos líneas exactas: Hola, Python y Estoy aprendiendo a programar.",
+      "hints": [
+        "La salida esperada es una sola línea con un texto exacto.",
+        "¿Qué instrucción de Python muestra un valor en la terminal?",
+        "El texto literal debe ir dentro de comillas.",
+        "La función print recibe el texto entre paréntesis.",
+        "Una línea en blanco no produce el mensaje esperado.",
+        "Escribe print(\"Hola, mundo\") y guarda el archivo."
+      ],
+      "variation_hints": [
+        "La variación pide dos mensajes y conserva su orden.",
+        "¿Cómo mostraste una línea en el ejercicio base?",
+        "Cada llamada a print termina normalmente con un salto de línea.",
+        "Escribe una llamada por mensaje.",
+        "Comprueba mayúsculas, comas, espacios y puntos.",
+        "Usa print(\"Hola, Python\") y después print(\"Estoy aprendiendo a programar\")."
+      ],
+      "start_section": 2,
+      "exercise": {
+        "project_dir": "exercises/python-first-program",
+        "starter_dir": "starter",
+        "assessment_file": "assessment.py",
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      }
+    },
+    {
+      "id": "python-values-and-expressions",
+      "module": "python-basics",
+      "title": "Valores y operaciones",
+      "objective": "Distinguir texto de números y combinar números con una expresión para mostrar un resultado.",
+      "concepts": [
+        "python.values",
+        "python.strings",
+        "python.expressions",
+        "python.arithmetic",
+        "python.print"
+      ],
+      "prerequisites": [
+        "python-first-program"
+      ],
+      "explanation": "Un número como 3 no lleva comillas; \"3\" es texto. Una expresión combina valores y operadores para calcular otro valor antes de que print lo muestre.",
+      "teaching_steps": [
+        "Los números se escriben sin comillas: 3. El texto sí usa comillas: \"tres\". Aunque se parezcan al leerlos, Python los trata de forma distinta.",
+        "Los operadores permiten calcular: + suma, - resta, * multiplica y / divide. Los paréntesis pueden hacer explícito el orden que quieres.",
+        "Una expresión es una operación que produce un valor. print(3 * 60) calcula primero el producto y después muestra 180."
+      ],
+      "example_explanation": "4 y 60 son valores numéricos. El operador * los multiplica y print muestra 240; el reto usa otra cantidad de minutos.",
+      "example": "print(4 * 60)",
+      "questions": [
+        "¿Qué diferencia hay entre 3 y \"3\" para Python?",
+        "¿Qué operador representa la multiplicación?",
+        "En print(3 * 60), ¿qué ocurre antes: calcular o mostrar?"
+      ],
+      "guided": "Escribe la operación en una hoja, estima el resultado y luego ejecútala. Si esperabas 180, compara el resultado real con ese valor.",
+      "requirements": [
+        "Muestra cuántos segundos hay en 3 minutos.",
+        "Usa una expresión numérica; no escribas 180 como texto entre comillas."
+      ],
+      "variation": "Calcula y muestra cuántos segundos hay en 2 horas. Recuerda que cada hora tiene 60 minutos.",
+      "hints": [
+        "Busca una conversión que use minutos y segundos.",
+        "¿Cuántos segundos hay en un minuto?",
+        "La multiplicación expresa grupos del mismo tamaño.",
+        "Primero convierte las horas a minutos y luego a segundos.",
+        "No pongas la operación entre comillas: necesitas calcularla.",
+        "Muestra el resultado de 3 * 60 con print(...)."
+      ],
+      "variation_hints": [
+        "La respuesta final debe estar expresada en segundos.",
+        "¿Cuántos minutos tiene una hora y cuántos segundos tiene un minuto?",
+        "Multiplica las tres cantidades de unidades.",
+        "Usa números, no una cadena que solo parezca una cuenta.",
+        "La operación puede escribirse como 2 * 60 * 60.",
+        "Pasa esa expresión numérica a print para mostrar el total."
+      ],
+      "start_section": 2,
+      "exercise": {
+        "project_dir": "exercises/python-values-and-expressions",
+        "starter_dir": "starter",
+        "assessment_file": "assessment.py",
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      }
+    },
+    {
+      "id": "python-names-and-variables",
+      "module": "python-basics",
+      "title": "Nombres y variables",
+      "objective": "Guardar valores con nombres claros, reutilizarlos en un cálculo y mostrar el resultado.",
+      "concepts": [
+        "python.assignment",
+        "python.identifiers",
+        "python.arithmetic",
+        "python.print"
+      ],
+      "prerequisites": [
+        "python-values-and-expressions"
+      ],
+      "explanation": "Una asignación como minutes = 3 enlaza el nombre minutes con el valor 3. Después puedes usar ese nombre en otras expresiones; el nombre describe el dato y evita repetir números sin contexto.",
+      "teaching_steps": [
+        "Un nombre como minutes puede representar un valor. En Python, un nombre suele escribirse en minúsculas y puede usar guiones bajos, por ejemplo seconds_per_minute.",
+        "El signo = asigna: calcula el valor de la derecha y lo asocia con el nombre de la izquierda. Aquí no significa que ambos lados sean una ecuación matemática.",
+        "Luego puedes usar esos nombres en otra operación. Guarda el resultado con un nombre que explique qué unidad representa y pásalo a print."
+      ],
+      "example_explanation": "El primer nombre guarda horas, el segundo la cantidad de minutos por hora, y el tercero guarda su producto. Es un ejemplo de unidades diferente al reto de segundos.",
+      "example": "hours = 1\nminutes_per_hour = 60\ntotal_minutes = hours * minutes_per_hour\nprint(total_minutes)",
+      "questions": [
+        "Después de minutes = 3, ¿qué valor representa el nombre minutes?",
+        "¿Qué significa el signo = en una asignación de Python?",
+        "¿Por qué total_seconds es más informativo que x?"
+      ],
+      "guided": "Escribe una línea por valor: cantidad, equivalencia y total. Comprueba cada variable mentalmente y confirma que la unidad final sea segundos.",
+      "requirements": [
+        "Asigna 3 al nombre minutes y 60 al nombre seconds_per_minute.",
+        "Calcula el resultado en total_seconds usando los nombres anteriores y muestra ese valor.",
+        "La salida debe ser 180."
+      ],
+      "variation": "Calcula el subtotal de 4 artículos a 125 centavos cada uno. Usa los nombres quantity, price_per_item_cents y subtotal_cents; muestra el subtotal en centavos.",
+      "hints": [
+        "Separa el problema en cantidad, equivalencia y resultado.",
+        "¿Qué valores necesitas guardar antes de calcular?",
+        "El signo = asigna a un nombre el valor de la expresión a su derecha.",
+        "Usa nombres que indiquen qué unidad tiene cada dato.",
+        "El total se obtiene multiplicando minutos por segundos por minuto.",
+        "Asigna 3 a minutes, 60 a seconds_per_minute, calcula su producto en total_seconds y muéstralo."
+      ],
+      "variation_hints": [
+        "Un subtotal depende de cuántos artículos hay y cuánto cuesta cada uno.",
+        "Guarda cada dato con el nombre indicado.",
+        "El precio se expresa en centavos, así que no hace falta usar decimales.",
+        "El subtotal es quantity multiplicado por el precio unitario.",
+        "Guarda el producto en subtotal_cents.",
+        "Muestra subtotal_cents con print(...)."
+      ],
+      "start_section": 2,
+      "exercise": {
+        "project_dir": "exercises/python-names-and-variables",
+        "starter_dir": "starter",
+        "assessment_file": "assessment.py",
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      }
+    },
+    {
+      "id": "python-first-function",
+      "module": "python-basics",
+      "title": "Tu primera función",
+      "objective": "Definir una función con un parámetro, devolver un resultado y llamarla con un argumento.",
+      "concepts": [
+        "python.def",
+        "python.functions",
+        "python.parameters",
+        "python.arguments",
+        "python.return-values"
+      ],
+      "prerequisites": [
+        "python-names-and-variables"
+      ],
+      "explanation": "def crea una función. Su parámetro es un nombre para el dato que recibirá; el cuerpo indentado contiene sus instrucciones. return entrega un resultado al código que llamó la función.",
+      "teaching_steps": [
+        "def es la palabra que inicia una definición. Después escribes un nombre, paréntesis y dos puntos: def double(number):.",
+        "number es un parámetro: un nombre que recibe un valor cuando alguien llama la función. Las líneas del cuerpo van indentadas debajo de la definición.",
+        "return envía un valor al lugar desde donde se llamó. Definir una función no ejecuta el cuerpo; double(5) la llama y entrega 5 como argumento."
+      ],
+      "example_explanation": "La función recibe un nombre, construye un saludo y lo devuelve. La llamada pasa Ana como argumento; print muestra el valor devuelto. El reto usará números en vez de texto.",
+      "example": "def make_greeting(name):\n    return \"Hola, \" + name\n\n\nprint(make_greeting(\"Ana\"))",
+      "questions": [
+        "¿Qué diferencia hay entre definir una función y llamarla?",
+        "Al ejecutar double(5), ¿qué valor recibe el parámetro number?",
+        "¿Qué hace return con el resultado?",
+        "¿Por qué print y return no significan lo mismo?"
+      ],
+      "guided": "Lee la definición de arriba abajo. Identifica el nombre, el parámetro, la expresión calculada y el valor de return. Después prueba con 0 y con un número negativo.",
+      "requirements": [
+        "Completa double(number) para que devuelva el doble de number.",
+        "La función debe devolver un número con return; no debe imprimirlo.",
+        "Debe funcionar con cero, números negativos y enteros grandes."
+      ],
+      "variation": "Define minutes_to_seconds(minutes) y devuelve la cantidad de segundos de esos minutos. La función no debe imprimir.",
+      "hints": [
+        "La función ya tiene nombre y parámetro; falta decidir qué resultado devolver.",
+        "¿Cómo escribiste una multiplicación en el ejercicio anterior?",
+        "Duplicar un número equivale a multiplicarlo por dos.",
+        "El cuerpo de la función necesita indentación.",
+        "return entrega el cálculo; print solo lo mostraría en pantalla.",
+        "Dentro de double, devuelve number * 2."
+      ],
+      "variation_hints": [
+        "El parámetro representa una cantidad de minutos.",
+        "¿Cuántos segundos corresponde a cada minuto?",
+        "La respuesta es un cálculo numérico con el parámetro.",
+        "La función debe devolver el resultado para que otro código pueda usarlo.",
+        "No necesitas print dentro de la función.",
+        "Devuelve minutes * 60."
+      ],
+      "start_section": 2,
+      "exercise": {
+        "project_dir": "exercises/python-first-function",
+        "starter_dir": "starter",
+        "assessment_file": "assessment.py",
+        "solution_file": "solution.py",
+        "variation_dir": "transfer"
+      }
+    },
+    {
       "id": "bindings-and-types",
       "module": "python-basics",
       "title": "Bindings y tipos dinámicos",
@@ -26,8 +260,10 @@
         "python.numeric-types",
         "python.f-strings"
       ],
-      "prerequisites": [],
-      "explanation": "En Python, una asignación enlaza un nombre con un objeto; el nombre no queda fijado a un tipo. int representa enteros y float aproximaciones decimales. Para dinero, guardar centavos como enteros evita errores de redondeo binario. Un f-string inserta valores en texto.",
+      "prerequisites": [
+        "python-first-function"
+      ],
+      "explanation": "Una asignación enlaza un nombre con un objeto; el nombre puede referirse después a un valor de otro tipo. int guarda enteros y float aproxima decimales. Para dinero, los centavos enteros evitan redondeos binarios. Un f-string inserta valores dentro de texto.",
       "example": "hours = 2\nminutes = 35\ntotal_minutes = hours * 60 + minutes\nneeds_break = total_minutes >= 120\nsummary = f\"Study session: {total_minutes} minutes\"",
       "questions": [
         "¿Una asignación duration = 10 fija para siempre el tipo de duration?",
@@ -61,7 +297,14 @@
         "La comparación con 3600 produce un bool.",
         "Reutiliza el cálculo de duración para evitar repetir la conversión.",
         "Forma el texto con un f-string que incluya la etiqueta y la duración total en segundos."
-      ]
+      ],
+      "start_section": 2,
+      "teaching_steps": [
+        "La asignación nombre = valor guarda una referencia para reutilizar el dato. Python decide el tipo según el valor: 4 es int, 4.5 es float y \"4\" es str.",
+        "Los nombres no quedan fijados para siempre a un tipo. Sin embargo, conviene mantener un significado estable y elegir nombres con sus unidades, como unit_price_cents.",
+        "float representa muchos decimales de forma aproximada. Para dinero, usa centavos como int; para incluir valores dentro de texto, escribe un f-string con f\"...{value}...\"."
+      ],
+      "example_explanation": "Los nombres guardan cantidades y unidades. total_minutes combina horas y minutos; needs_break guarda un bool. El prefijo f permite insertar el total dentro del mensaje."
     },
     {
       "id": "control-flow",
@@ -76,7 +319,7 @@
       "prerequisites": [
         "bindings-and-types"
       ],
-      "explanation": "if, elif y else ejecutan una sola rama, así que el orden de los límites importa. Python considera falsos valores como 0, pero conviene expresar el contrato directamente cuando cero es una entrada válida. Diseña condiciones que cubran cada frontera y el caso restante.",
+      "explanation": "if ejecuta un bloque solo cuando su condición es verdadera. elif prueba otra condición si las anteriores fueron falsas y else cubre lo que queda. El orden de los límites define casos de frontera; expresa también qué debe pasar con una entrada inválida.",
       "example": "if temperature_c < 0:\n    label = \"freezing\"\nelif temperature_c <= 18:\n    label = \"cool\"\nelif temperature_c <= 28:\n    label = \"mild\"\nelse:\n    label = \"warm\"",
       "questions": [
         "¿Qué etiqueta recibe exactamente 18 si la segunda condición es temperature_c <= 18?",
@@ -110,7 +353,14 @@
         "La pista del servidor debe compararse con el backoff ya calculado.",
         "Aplica el límite global después de escoger el mayor retraso.",
         "Para intento n positivo, el backoff es min(2 ** (n - 1), 30); combina con max y limita el resultado a 60."
-      ]
+      ],
+      "start_section": 2,
+      "teaching_steps": [
+        "Una comparación como weight_grams < 0 produce True o False. if usa ese resultado para decidir si ejecuta su bloque indentado.",
+        "elif significa \"si no ocurrió lo anterior, prueba esto\". else se ejecuta cuando ninguna condición previa coincidió.",
+        "Python toma la primera rama verdadera y luego sale de la estructura. Coloca primero la regla más específica y prueba valores justo debajo, en y encima de cada límite."
+      ],
+      "example_explanation": "Cada rama clasifica un intervalo. 18 pertenece a cool porque esa comparación usa <=; 19 pasa a la siguiente condición."
     },
     {
       "id": "functions-and-composition",
@@ -126,7 +376,7 @@
       "prerequisites": [
         "control-flow"
       ],
-      "explanation": "Una función recibe argumentos, ejecuta un bloque y devuelve un resultado con return. Los nombres y parámetros forman parte de su contrato. Dividir una operación en funciones pequeñas permite probar cada paso y hace visible cómo se componen. En este ejercicio, los importes son enteros no negativos y las tasas enteras están entre 0 y 100.",
+      "explanation": "Una función recibe parámetros, ejecuta instrucciones indentadas y devuelve un valor con return. Una función pequeña puede llamar a otra. Si cada función tiene un contrato claro, el cálculo final se puede construir y probar por pasos.",
       "example": "def rectangle_area(width, height):\n    return width * height\n\n\ndef rectangle_perimeter(width, height):\n    return 2 * (width + height)\n\n\ndef rectangle_summary(width, height):\n    return rectangle_area(width, height), rectangle_perimeter(width, height)",
       "questions": [
         "¿Qué diferencia hay entre imprimir un valor y devolverlo con return?",
@@ -161,7 +411,14 @@
         "Calcula las pausas en una función aparte.",
         "Usa una suma de las duraciones de todos los segmentos y agrega el total de pausas.",
         "math.ceil(distance_km * 60 / speed_kph) redondea cada tramo; compón esos valores y el cálculo de pausas."
-      ]
+      ],
+      "start_section": 2,
+      "teaching_steps": [
+        "Una función puede recibir datos en sus parámetros y devolver un resultado. Aquí discount_cents calcula una cantidad; checkout_total coordina varios pasos.",
+        "Calcula primero el descuento. Lo que queda es la base imponible; el impuesto debe calcularse sobre esa cantidad si las reglas dicen que el descuento va antes.",
+        "Guarda resultados intermedios con nombres claros y llama funciones pequeñas. Así puedes probar cada paso sin depurar toda la operación a la vez."
+      ],
+      "example_explanation": "Las dos primeras funciones resuelven cálculos separados. rectangle_summary las llama y devuelve juntos sus resultados."
     },
     {
       "id": "collections",
@@ -179,7 +436,7 @@
       "prerequisites": [
         "functions-and-composition"
       ],
-      "explanation": "dict asocia keys con values y se recorre con .items(); list mantiene elementos en orden. sum y max expresan agregaciones, pero max necesita una política clara para empates. Una función que combina inventarios puede devolver un dict nuevo para no mutar los argumentos del caller.",
+      "explanation": "list guarda elementos ordenados y dict asocia una key con un value. Puedes recorrer sus elementos, acumular cantidades y crear una colección nueva. Define desempates explícitos para que los resultados sean predecibles.",
       "example": "attendees_by_room = {\"lab-a\": [\"Ana\", \"Luis\"], \"lab-b\": []}\noccupied_rooms = [room for room, attendees in attendees_by_room.items() if attendees]\nattendee_count = sum(len(attendees) for attendees in attendees_by_room.values())",
       "questions": [
         "¿Qué entrega stock.items() en cada iteración?",
@@ -215,7 +472,14 @@
         "Para ordenar el ranking, la frecuencia debe ir antes del nombre.",
         "Limita la lista resultante después de aplicar el orden determinista.",
         "Ordena con key=lambda item: (-item[1], item[0]); para limit <= 0 devuelve una lista vacía."
-      ]
+      ],
+      "start_section": 2,
+      "teaching_steps": [
+        "Una list mantiene los elementos en orden. Un dict relaciona claves con valores; por ejemplo, un SKU puede apuntar a una cantidad.",
+        "for recorre los elementos. Usa .items() cuando necesites la clave y el valor, y .values() cuando solo necesites sumar los valores.",
+        "Al combinar datos, crea un dict nuevo si el contrato dice que no debes modificar las entradas. Ordena resultados con una regla clara para los empates."
+      ],
+      "example_explanation": "items() produce pares de habitación y lista de asistentes. La comprensión selecciona solo habitaciones ocupadas; sum agrega cantidades."
     },
     {
       "id": "exceptions-and-parsing",
@@ -231,7 +495,7 @@
       "prerequisites": [
         "collections"
       ],
-      "explanation": "Los datos externos empiezan como strings y deben validarse antes de usarse. int(text) lanza ValueError si no puede convertir el formato. En cambio, Decimal(text) puede señalar decimal.InvalidOperation ante texto numérico inválido; esa excepción no es ValueError. Un parser debe verificar primero el formato y traducir fallas de conversión a un ValueError coherente para el caller.",
+      "explanation": "Los datos externos suelen llegar como strings. Valida su formato antes de usarlos y traduce errores de conversión a ValueError para darle al caller un contrato predecible.",
       "example": "import json\n\ntry:\n    settings = json.loads(raw_settings)\nexcept json.JSONDecodeError as error:\n    raise ValueError(\"settings must contain valid JSON\") from error",
       "questions": [
         "¿Qué diferencia hay entre devolver None y lanzar ValueError cuando el caller proporcionó un formato inválido?",
@@ -266,7 +530,14 @@
         "Define explícitamente la sintaxis decimal aceptada antes de convertir.",
         "Convierte el valor a décimas y agrega el número de línea al mensaje de ValueError.",
         "Usa csv.reader con strict=True y Decimal; captura csv.Error y decimal.InvalidOperation y tradúcelos a ValueError con la línea."
-      ]
+      ],
+      "start_section": 2,
+      "teaching_steps": [
+        "Una entrada recibida desde un archivo o una API suele ser str, incluso si representa un número. Primero define qué formatos acepta el contrato.",
+        "Convierte solo después de validar. int y Decimal pueden fallar ante texto inválido; captura la excepción esperada en el límite donde interpretas la entrada.",
+        "Lanza ValueError con un mensaje útil para que el caller sepa que el dato no cumple el formato. No ocultes errores inesperados con un except amplio."
+      ],
+      "example_explanation": "json.loads puede lanzar JSONDecodeError. El bloque except traduce ese problema a ValueError, que el caller del parser puede manejar."
     }
   ]
 }

@@ -27,9 +27,23 @@ check(#tracks == 4, "Rust, Python, Java, and Go learning tracks load")
 local track_by_id = {}
 for _, loaded_track in ipairs(tracks) do
   track_by_id[loaded_track.id] = loaded_track
-  check(#loaded_track._ordered_lessons == 5, loaded_track.id .. " has five real lessons")
+  local expected_lessons = loaded_track.id == "python-foundations" and 9 or 5
+  check(#loaded_track._ordered_lessons == expected_lessons,
+    loaded_track.id .. " has " .. expected_lessons .. " real lessons")
 end
 local track = assert(track_by_id["rust-foundations"], "Rust foundations track loads")
+local python_track = assert(track_by_id["python-foundations"], "Python foundations track loads")
+local python_ids = {}
+for index, item in ipairs(python_track._ordered_lessons) do
+  python_ids[index] = item.id
+  check(item.start_section == 2 and #item.teaching_steps >= 3,
+    "Python lesson " .. item.id .. " opens with a staged concept explanation")
+end
+check(table.concat(python_ids, ",") == table.concat({
+  "python-first-program", "python-values-and-expressions", "python-names-and-variables",
+  "python-first-function", "bindings-and-types", "control-flow", "functions-and-composition",
+  "collections", "exceptions-and-parsing",
+}, ","), "Python curriculum starts from execution and builds prerequisites in order")
 for _, item in ipairs(track._ordered_lessons) do
   check(item.exercise._variation_dir ~= nil and item.exercise._variation_manifest ~= nil,
     "each Rust lesson has a validated independent transfer project")
@@ -72,6 +86,12 @@ local incomplete = vim.deepcopy(cycle)
 incomplete.lessons[1].guided = nil
 local _, incomplete_err = graph.validate(incomplete)
 check(incomplete_err and incomplete_err:find("guided"), "incomplete lessons are rejected before rendering")
+local bad_start_section = vim.deepcopy(cycle)
+bad_start_section.lessons[1].prerequisites = {}
+bad_start_section.lessons[2].prerequisites = { "a" }
+bad_start_section.lessons[1].start_section = 6
+local _, section_err = graph.validate(bad_start_section)
+check(section_err and section_err:find("start_section"), "invalid lesson entry sections are rejected")
 
 local migrated, migration_err = migrations.upgrade({ schema_version = 0 })
 check(migrated ~= nil and migrated.schema_version == 1 and migrated.tracks ~= nil, migration_err or "schema v0 migration")
@@ -190,6 +210,9 @@ check(vim.fn.maparg("e", "n", false, true).desc == "Abrir lección actual",
   "active dashboard provides a distinct current-lesson action")
 check(vim.fn.maparg("a", "n", false, true).buffer == 1,
   "active dashboard exposes recall as a buffer-local action")
+local active_dashboard = table.concat(vim.api.nvim_buf_get_lines(ui.current.buf, 0, -1, false), "\n")
+check(active_dashboard:find("Progreso", 1, true) and active_dashboard:find("░", 1, true),
+  "dashboard presents a progress bar from assessment-backed completion")
 ui.close()
 local export_path = fs.join(temporary, "export/progress-copy.json")
 commands.export(export_path)
@@ -218,6 +241,9 @@ vim.o.columns, vim.o.lines = 120, 40
 commands.start(track.id)
 check(ui.lesson_view and ui.lesson_view.win and vim.api.nvim_win_is_valid(ui.lesson_view.win), "starting a lesson opens a dedicated reading view")
 check(ui.lesson_view.kind == "split" and vim.api.nvim_get_current_buf() == vim.fn.bufnr(source_file), "wide terminals keep code focused beside a lesson split")
+local lesson_position = vim.api.nvim_win_get_position(ui.lesson_view.win)
+local code_position = vim.api.nvim_win_get_position(ui.lesson_view.return_win)
+check(lesson_position[2] < code_position[2], "wide lesson layout places reading left of the code editor")
 check(vim.wo[ui.lesson_view.win].wrap and vim.wo[ui.lesson_view.win].linebreak, "lesson prose wraps at word boundaries")
 local first_lesson_text = table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n")
 check(first_lesson_text:find("bindings", 1, true) and not first_lesson_text:find("rust.binding", 1, true), "lesson concepts use learner-facing labels instead of raw IDs")
@@ -227,7 +253,7 @@ check(first_lesson_text:find("[1 Reto]", 1, true) and first_lesson_text:find("2 
 vim.api.nvim_set_current_win(ui.lesson_view.win)
 vim.cmd("normal 2")
 local concept_text = table.concat(vim.api.nvim_buf_get_lines(ui.lesson_view.buf, 0, -1, false), "\n")
-check(concept_text:find("# Concepto", 1, true) and concept_text:find("[2 Idea]", 1, true)
+check(concept_text:find("# La idea", 1, true) and concept_text:find("[2 Idea]", 1, true)
   and not concept_text:find("# Reto", 1, true), "numbered lesson tabs replace the content and mark the active section")
 vim.cmd("normal 1")
 vim.api.nvim_set_current_win(ui.lesson_view.return_win)

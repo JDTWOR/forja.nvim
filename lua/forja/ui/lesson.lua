@@ -10,6 +10,10 @@ local concept_labels = {
   ["rust.decomposition"] = "descomposición", ["rust.ownership"] = "ownership", ["rust.borrowing"] = "borrowing",
   ["rust.string-slice"] = "string slices", ["rust.lifetimes-intro"] = "lifetimes",
   ["python.assignment"] = "asignación", ["python.numeric-types"] = "tipos numéricos",
+  ["python.print"] = "print y salida", ["python.expressions"] = "expresiones",
+  ["python.arithmetic"] = "aritmética", ["python.identifiers"] = "nombres",
+  ["python.def"] = "definir una función", ["python.calling"] = "llamar una función",
+  ["python.arguments"] = "argumentos", ["python.return-values"] = "valores de retorno",
   ["python.booleans"] = "booleanos", ["python.f-strings"] = "f-strings",
   ["python.boolean-expressions"] = "expresiones booleanas", ["python.boundaries"] = "casos límite",
   ["python.conditionals"] = "condicionales", ["python.functions"] = "functions",
@@ -65,7 +69,7 @@ local function header(lesson, active, source_file)
     string.format("FORJA  /  %s  /  %s", (lesson.language or "rust"):upper(), lesson.title),
     table.concat(tabs, "  ·  "),
     string.rep("─", 42),
-    "Archivo: " .. source_file .. "    ·    r visibles    t evaluar",
+    "Archivo: " .. source_file .. "    ·    r tests visibles    t evaluación",
     "",
   }
 end
@@ -77,9 +81,21 @@ local function normal_content(lesson, active, source_file)
     for _, requirement in ipairs(lesson.requirements) do table.insert(lines, "- " .. requirement) end
     vim.list_extend(lines, { "", "Completa el reto en el editor. Ejecuta `:ForjaRun` para los casos visibles." })
   elseif active == 2 then
-    vim.list_extend(lines, { "# Concepto", "", "## Ideas clave", concepts(lesson.concepts), "", lesson.explanation })
+    vim.list_extend(lines, { "# La idea", "", "## Qué vas a aprender", lesson.objective, "",
+      "## Ideas clave", concepts(lesson.concepts), "" })
+    if lesson.teaching_steps then
+      for index, step in ipairs(lesson.teaching_steps) do
+        table.insert(lines, string.format("### Paso %d", index))
+        table.insert(lines, step)
+        table.insert(lines, "")
+      end
+      table.insert(lines, "Resumen: " .. lesson.explanation)
+    else
+      table.insert(lines, lesson.explanation)
+    end
   elseif active == 3 then
-    vim.list_extend(lines, { "# Ejemplo orientativo", "", "Este ejemplo ilustra el concepto con un caso distinto al ejercicio.", "", "```" .. (lesson.language or "rust") })
+    vim.list_extend(lines, { "# Ejemplo orientativo", "",
+      lesson.example_explanation or "Este ejemplo ilustra el concepto con un caso distinto al ejercicio.", "", "```" .. (lesson.language or "rust") })
     vim.list_extend(lines, vim.split(lesson.example, "\n", { plain = true }))
     vim.list_extend(lines, { "```", "", "Vuelve al reto e implementa la solución de memoria." })
   elseif active == 4 then
@@ -115,7 +131,7 @@ function M.render(lesson, workspace, mode, exam_active)
       "", "Archivo: " .. source_file .. "    ·    r tests visibles    t evaluación" })
   else
     local key = (lesson.language or "rust") .. "." .. lesson.id
-    local index = selected[key] or 1
+    local index = selected[key] or lesson.start_section or 1
     lines = normal_content(lesson, index, source_file)
   end
 
@@ -126,7 +142,8 @@ function M.render(lesson, workspace, mode, exam_active)
   end
 
   local title = mode == "practice" and "Transferencia · " .. lesson.title or lesson.title
-  local view = ui.open_lesson(lines, title, nil, mode, exam_active, practice_available, selected[(lesson.language or "rust") .. "." .. lesson.id] or 1)
+  local view = ui.open_lesson(lines, title, nil, mode, exam_active, practice_available,
+    selected[(lesson.language or "rust") .. "." .. lesson.id] or lesson.start_section or 1)
   if not restricted and mode ~= "recall" then
     local key = (lesson.language or "rust") .. "." .. lesson.id
     for index = 1, #sections do

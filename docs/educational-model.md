@@ -8,25 +8,34 @@ not unlock the next lesson; the assessment command must pass.
 
 Each lesson in the Rust, Python, Java and Go foundations tracks includes an
 objective, Spanish explanation, compact code example, retrieval questions,
-guided strategy, implementation requirements and a transfer prompt. Every
+guided strategy, implementation requirements and a transfer prompt. Python
+starts with four short lessons that teach file execution and `print`, numeric
+values and expressions, named values and assignment, then function definition,
+calling and `return`. Existing Python lessons depend on that sequence so a
+track with old progress does not accidentally jump past the new foundations.
+Beginner lessons display the objective and three staged explanation steps
+before the exercise. Every
 lesson also has a separate runnable transfer project. Each base and transfer
 exercise has visible tests, separately stored assessment tests and a verified
 reference solution. The learner writes code in a persistent workspace.
 
 The workflow is:
 
-1. Use `:ForjaRecall` to answer the short questions before rereading; answers
+1. In the Python beginner sequence, first read the lesson pane and inspect the
+   example. The pane is placed to the left of the code on wide terminals. Then
+   switch to `1 Reto` and attempt the implementation.
+2. Use `:ForjaRecall` to answer the short questions before rereading; answers
    are saved as practice evidence and are not automatically graded.
-2. Inspect the requirements and implement the main task.
-3. Run `:ForjaRun` for visible compiler/test feedback.
-4. Run `:ForjaTest` for the hidden assessment target and next-lesson gate.
-5. Review assistance and result history with `:ForjaProgress`.
-6. Revisit a completed exercise using `:ForjaReview`, which creates a clean
+3. Inspect the requirements and implement the main task.
+4. Run `:ForjaRun` for visible compiler/test feedback.
+5. Run `:ForjaTest` for the hidden assessment target and next-lesson gate.
+6. Review assistance and result history with `:ForjaProgress`.
+7. Revisit a completed exercise using `:ForjaReview`, which creates a clean
    starter copy and hides the worked explanation, example, and strategy.
-7. Use `:ForjaPractice` to implement a dedicated transfer problem in a separate
+8. Use `:ForjaPractice` to implement a dedicated transfer problem in a separate
    workspace. Its test and assistance evidence is independent from the base
    lesson and does not unlock curriculum progress.
-8. Use `:ForjaHistory` to reopen saved recall answers or resume an earlier
+9. Use `:ForjaHistory` to reopen saved recall answers or resume an earlier
    review/transfer workspace without overwriting it.
 
 ## Assistance and outcomes

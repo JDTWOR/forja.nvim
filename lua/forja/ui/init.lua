@@ -105,7 +105,7 @@ local function resize_view(view)
     if view.return_win and vim.api.nvim_win_is_valid(view.return_win) then
       vim.api.nvim_set_current_win(view.return_win)
     end
-    vim.api.nvim_cmd({ cmd = "vsplit" }, {})
+    vim.cmd("leftabove vsplit")
     local win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(win, view.buf)
     vim.api.nvim_win_set_width(win, clamp(math.floor(columns * 0.4), 32, 64))
@@ -121,7 +121,8 @@ local function resize_view(view)
   if view.kind == "split" then
     vim.api.nvim_win_set_width(view.win, clamp(math.floor(columns * 0.4), 32, 64))
   else
-    vim.api.nvim_win_set_config(view.win, float_config(view.title))
+    local lines = vim.api.nvim_buf_get_lines(view.buf, 0, -1, false)
+    vim.api.nvim_win_set_config(view.win, float_config(view.title, #lines))
   end
 end
 
@@ -189,7 +190,7 @@ function M.open_lesson(lines, title, code_win, mode, exam_active, practice_avail
   local view
   if vim.o.columns >= 90 then
     if vim.api.nvim_win_is_valid(code_win) then vim.api.nvim_set_current_win(code_win) end
-    vim.api.nvim_cmd({ cmd = "vsplit" }, {})
+    vim.cmd("leftabove vsplit")
     local win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(win, buf)
     vim.api.nvim_win_set_width(win, clamp(math.floor(vim.o.columns * 0.4), 32, 64))
@@ -198,7 +199,7 @@ function M.open_lesson(lines, title, code_win, mode, exam_active, practice_avail
     set_lesson_bar(win, view)
     vim.api.nvim_set_current_win(code_win)
   else
-    local win = vim.api.nvim_open_win(buf, true, float_config(title))
+    local win = vim.api.nvim_open_win(buf, true, float_config(title, #lines))
     set_reading_options(win)
     view = { buf = buf, win = win, kind = "float", return_win = code_win, is_lesson = true, title = title, mode = mode, exam_active = exam_active, section_index = section_index or 1 }
     set_lesson_bar(win, view)
@@ -241,6 +242,9 @@ function M.update_lesson(lines, title, section_index)
     if view.win and vim.api.nvim_win_is_valid(view.win) then
       set_lesson_bar(view.win, view)
     end
+  end
+  if view.kind == "float" and view.win and vim.api.nvim_win_is_valid(view.win) then
+    vim.api.nvim_win_set_config(view.win, float_config(view.title, #lines))
   end
   if view.win and vim.api.nvim_win_is_valid(view.win) then
     vim.api.nvim_win_set_cursor(view.win, { 1, 0 })
@@ -328,6 +332,7 @@ function M.dashboard(lines, actions)
       or line:match("^TUTOR IA") and "Special"
       or line:match("^RECORRIDO") and "Special"
       or line:match("^ACTIVIDAD") and "Special"
+      or line:match("^  Progreso") and "DiagnosticInfo"
       or line:match("^%s*%[[slc]%]") and "DiagnosticInfo"
     if group then pcall(vim.api.nvim_buf_add_highlight, buf, ns, group, index - 1, 0, -1) end
   end
@@ -351,42 +356,96 @@ function M.dashboard(lines, actions)
 end
 
 function M.track_picker(entries, selected, on_select)
-  local lines = {
-    "ELIGE TU LENGUAJE",
-    "Cambia de ruta cuando quieras; cada curso conserva su propio progreso.",
-    "",
-  }
-  local selectable_rows = {}
-  for index, entry in ipairs(entries) do
-    local track = entry.track
-    local language = tostring(track.language or ""):upper()
-    local progress = entry.progress or "0/" .. tostring(#(track.lessons or {}))
-    local title = track.title or language
-    local row = string.format("  %d   %-10s  %-39s  %s", index, language, title, progress)
-    selectable_rows[index] = #lines + 1
-    table.insert(lines, row)
-    local description = tostring(track.description or ""):gsub("%s+", " ")
-    if vim.fn.strdisplaywidth(description) > 75 then description = vim.fn.strcharpart(description, 0, 72) .. "..." end
-    table.insert(lines, "      " .. description)
-    table.insert(lines, "")
-  end
-  table.insert(lines, "J/K mover  ·  Enter abrir  ·  1–" .. tostring(#entries) .. " elegir  ·  q volver")
-  local buf, win = M.open(lines, "FORJA · CAMBIAR LENGUAJE", { fit = true })
+  local buf, win = M.open({ "Cargando rutas..." }, "FORJA · RUTAS", { fit = true })
   vim.wo[win].cursorline = true
   vim.wo[win].cursorlineopt = "line"
   local ns = vim.api.nvim_create_namespace("forja-track-picker")
-  for index, row in ipairs(selectable_rows) do
-    vim.api.nvim_buf_add_highlight(buf, ns, "Identifier", row - 1, 0, -1)
-    vim.api.nvim_buf_add_highlight(buf, ns, "Comment", row, 0, -1)
-  end
-  for index, line in ipairs(lines) do
-    if index == 1 then vim.api.nvim_buf_add_highlight(buf, ns, "Title", index - 1, 0, -1) end
-  end
+  local filter = ""
+  local filtered, selectable_rows = {}, {}
   local current = math.max(1, math.min(selected or 1, #entries))
+
+  local function matches(entry)
+    if filter == "" then return true end
+    local track = entry.track
+    local haystack = table.concat({ track.language or "", track.title or "", track.description or "" }, " "):lower()
+    return haystack:find(filter:lower(), 1, true) ~= nil
+  end
+
+  local function render()
+    filtered, selectable_rows = {}, {}
+    for index, entry in ipairs(entries) do
+      if matches(entry) then table.insert(filtered, index) end
+    end
+    local lines = {
+      "FORJA  /  RUTAS DE APRENDIZAJE",
+      "Elige un lenguaje. Cada ruta conserva sus lecciones y su progreso.",
+      "",
+      "Buscar: " .. (filter == "" and "(sin filtro)" or filter),
+      string.format("Mostrando %d de %d rutas", #filtered, #entries),
+      "",
+    }
+    local current_visible = false
+    local row_width = vim.api.nvim_win_get_width(win)
+    local compact = row_width < 62
+    local title_width = math.max(10, row_width - (compact and 10 or 38))
+    for visible, index in ipairs(filtered) do
+      local entry, track = entries[index], entries[index].track
+      local language = tostring(track.language or ""):upper()
+      local progress = entry.progress or ("0/" .. tostring(#(track.lessons or {})))
+      local marker = compact and (entry.active and "●" or "○")
+        or (entry.active and "● ACTIVA" or "○ disponible")
+      local title = track.title or language
+      if vim.fn.strdisplaywidth(title) > title_width then
+        title = vim.fn.strcharpart(title, 0, title_width - 1) .. "…"
+      end
+      local title_column = string.format("%-" .. title_width .. "s", title)
+      selectable_rows[visible] = #lines + 1
+      if compact then
+        table.insert(lines, string.format("  %d  %-8s  %s  %s", visible, language, progress, marker))
+        table.insert(lines, "      " .. title_column)
+      else
+        table.insert(lines, string.format("  %d   %-8s  %s  %s   %s", visible, language,
+          title_column, progress, marker))
+      end
+      local description = tostring(track.description or ""):gsub("%s+", " ")
+      local description_width = math.max(16, row_width - 10)
+      if vim.fn.strdisplaywidth(description) > description_width then
+        description = vim.fn.strcharpart(description, 0, description_width - 3) .. "..."
+      end
+      table.insert(lines, "      " .. description)
+      table.insert(lines, "")
+      if index == current then current_visible = visible end
+    end
+    if #filtered == 0 then table.insert(lines, "  No hay rutas que coincidan. Pulsa x para limpiar el filtro.") end
+    table.insert(lines, "  / buscar   ·   x limpiar   ·   j/k mover   ·   Enter abrir   ·   q volver")
+    vim.bo[buf].modifiable = true
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].modified = false
+    vim.bo[buf].modifiable = false
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_set_config(win, float_config("FORJA · RUTAS", #lines))
+    end
+    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+    vim.api.nvim_buf_add_highlight(buf, ns, "Title", 0, 0, -1)
+    vim.api.nvim_buf_add_highlight(buf, ns, "Comment", 1, 0, -1)
+    vim.api.nvim_buf_add_highlight(buf, ns, "DiagnosticInfo", 3, 0, -1)
+    for visible, row in ipairs(selectable_rows) do
+      vim.api.nvim_buf_add_highlight(buf, ns, entries[filtered[visible]].active and "DiagnosticOk" or "Identifier", row - 1, 0, -1)
+      vim.api.nvim_buf_add_highlight(buf, ns, "Comment", row, 0, -1)
+    end
+    if vim.api.nvim_win_is_valid(win) then
+      local target = current_visible and selectable_rows[current_visible] or math.min(1, #lines)
+      if target and target > 0 then vim.api.nvim_win_set_cursor(win, { target, 0 }) end
+    end
+  end
+
   local function move(delta)
-    if #entries == 0 then return end
-    current = ((current - 1 + delta) % #entries) + 1
-    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_set_cursor(win, { selectable_rows[current], 0 }) end
+    if #filtered == 0 then return end
+    local visible = 1
+    for index, original in ipairs(filtered) do if original == current then visible = index; break end end
+    visible = ((visible - 1 + delta) % #filtered) + 1
+    current = filtered[visible]
+    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_set_cursor(win, { selectable_rows[visible], 0 }) end
   end
   local function choose(index)
     local entry = entries[index]
@@ -394,15 +453,38 @@ function M.track_picker(entries, selected, on_select)
     remove_view("float", true)
     on_select(entry.track)
   end
-  if #entries > 0 then vim.api.nvim_win_set_cursor(win, { selectable_rows[current], 0 }) end
+  local function choose_current()
+    for _, index in ipairs(filtered) do if index == current then choose(index); return end end
+  end
+  local function search()
+    vim.ui.input({ prompt = "Buscar lenguaje o ruta: ", default = filter }, function(value)
+      if value == nil then return end
+      local old = current
+      filter = value
+      local was_visible, first_match = false, nil
+      for index, entry in ipairs(entries) do
+        if matches(entry) then
+          first_match = first_match or index
+          if index == old then was_visible = true end
+        end
+      end
+      if not was_visible then current = first_match or 1 end
+      render()
+    end)
+  end
+  render()
   vim.keymap.set("n", "j", function() move(1) end, { buffer = buf, silent = true, desc = "Siguiente lenguaje" })
   vim.keymap.set("n", "k", function() move(-1) end, { buffer = buf, silent = true, desc = "Lenguaje anterior" })
   vim.keymap.set("n", "<Down>", function() move(1) end, { buffer = buf, silent = true })
   vim.keymap.set("n", "<Up>", function() move(-1) end, { buffer = buf, silent = true })
-  vim.keymap.set("n", "<CR>", function() choose(current) end, { buffer = buf, silent = true, desc = "Abrir ruta" })
-  for index = 1, math.min(9, #entries) do
-    vim.keymap.set("n", tostring(index), function() choose(index) end,
-      { buffer = buf, silent = true, desc = "Elegir " .. entries[index].track.title })
+  vim.keymap.set("n", "/", search, { buffer = buf, silent = true, desc = "Buscar ruta" })
+  vim.keymap.set("n", "x", function() filter = ""; render() end,
+    { buffer = buf, silent = true, desc = "Limpiar filtro" })
+  vim.keymap.set("n", "<CR>", choose_current, { buffer = buf, silent = true, desc = "Abrir ruta" })
+  for visible = 1, math.min(9, #filtered) do
+    vim.keymap.set("n", tostring(visible), function()
+      if filtered[visible] then choose(filtered[visible]) end
+    end, { buffer = buf, silent = true, desc = "Elegir " .. entries[filtered[visible]].track.title })
   end
   return buf, win
 end
