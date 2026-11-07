@@ -164,25 +164,32 @@ vim.cmd("source plugin/forja.lua")
 config.setup({ data_dir = temporary, runner = { timeout_ms = 30000 } })
 check(vim.fn.exists(":Forja") == 2, "plugin runtime registers commands when sourced")
 commands.setup()
-for _, command in ipairs({ "Forja", "ForjaClose", "ForjaResult", "ForjaStart", "ForjaTracks", "ForjaLesson", "ForjaNext", "ForjaRun", "ForjaTest", "ForjaHint", "ForjaRecall", "ForjaTutor", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaProgress", "ForjaHealth", "ForjaTrustLocal", "ForjaCancel", "ForjaExport" }) do
+for _, command in ipairs({ "Forja", "ForjaClose", "ForjaResult", "ForjaStart", "ForjaLang", "ForjaSettings", "ForjaTracks", "ForjaLesson", "ForjaNext", "ForjaRun", "ForjaTest", "ForjaHint", "ForjaRecall", "ForjaTutor", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaProgress", "ForjaHealth", "ForjaTrustLocal", "ForjaCancel", "ForjaExport" }) do
   check(vim.fn.exists(":" .. command) == 2, "command is registered: " .. command)
 end
 vim.api.nvim_cmd({ cmd = "Forja" }, {})
 check(ui.current and vim.api.nvim_buf_is_valid(ui.current.buf), ":Forja opens the native dashboard")
-check(vim.fn.maparg("a", "n", false, true).buffer == 1, "dashboard exposes active recall as a buffer-local action")
+check(vim.fn.maparg("a", "n", false, true).buffer ~= 1, "fresh dashboard hides actions that need an active route")
+check(vim.fn.maparg("l", "n", false, true).desc == "Cambiar lenguaje o ruta",
+  "dashboard provides a direct language-switch action")
 local initial_dashboard = table.concat(vim.api.nvim_buf_get_lines(ui.current.buf, 0, -1, false), "\n")
-check(initial_dashboard:find("Aún no has elegido una ruta", 1, true), "a fresh dashboard does not silently select the alphabetically first course")
-local old_select_for_track = vim.ui.select
-vim.ui.select = function(items, _, callback)
-  for _, item in ipairs(items) do
-    if item.id == "rust-foundations" then callback(item); return end
-  end
-  error("Rust track was missing from the initial track picker")
-end
+check(initial_dashboard:find("Bienvenido", 1, true) and initial_dashboard:find("[l] Elegir lenguaje", 1, true),
+  "a fresh dashboard presents a clear language-selection action")
 commands.start()
-vim.ui.select = old_select_for_track
+local picker_buf = ui.current.buf
+local picker_text = table.concat(vim.api.nvim_buf_get_lines(picker_buf, 0, -1, false), "\n")
+check(picker_text:find("RUST", 1, true) and not picker_text:find("rust-foundations", 1, true),
+  "first-run route selection shows a friendly language name instead of an internal ID")
+for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(picker_buf, "n")) do
+  if mapping.lhs == "1" and mapping.callback then mapping.callback(); break end
+end
 check(storage.load().active_track == "rust-foundations" and ui.lesson_view ~= nil,
-  "starting from an empty dashboard asks the learner to choose a track")
+  "first-run language picker starts the selected track")
+commands.dashboard()
+check(vim.fn.maparg("e", "n", false, true).desc == "Abrir lección actual",
+  "active dashboard provides a distinct current-lesson action")
+check(vim.fn.maparg("a", "n", false, true).buffer == 1,
+  "active dashboard exposes recall as a buffer-local action")
 ui.close()
 local export_path = fs.join(temporary, "export/progress-copy.json")
 commands.export(export_path)

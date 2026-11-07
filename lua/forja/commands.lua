@@ -197,16 +197,21 @@ end
 local function status_text(state, track, lesson)
   if not track then
     return {
-      "# Forja.nvim",
+      "FORJA   /   APRENDIZAJE POR PRÁCTICA",
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
       "",
-      "Aún no has elegido una ruta de aprendizaje.",
+      "Bienvenido. Elige un lenguaje para empezar a construir independencia al programar.",
       "",
-      "Siguiente acción: s · elegir ruta y empezar    t · explorar rutas",
+      "PRÓXIMO PASO",
+      "  [l] Elegir lenguaje y abrir su curso",
+      "  [c] Configurar el tutor IA (opcional)",
       "",
-      "Forja incluye cursos de Rust, Python, Java y Go.",
+      "RUTAS DISPONIBLES",
+      "  Rust   ·   Python   ·   Java   ·   Go",
       "",
-      "Atajos: s empezar · t rutas · p progreso · q cerrar",
-      "Comandos: :ForjaStart [track-id] · :ForjaTracks · :ForjaHealth",
+      "ATAJOS",
+      "  l elegir lenguaje  ·  c ajustes de IA  ·  q cerrar",
+      "  También puedes ejecutar :ForjaLang o :ForjaSettings",
     }
   end
   local done, total = 0, #ordered(track)
@@ -214,20 +219,24 @@ local function status_text(state, track, lesson)
   for _, item in ipairs(ordered(track)) do
     if track_progress.lessons[item.id] and track_progress.lessons[item.id].completed then done = done + 1 end
   end
+  local lesson_shortcut = lesson and "  e abrir lección  ·" or ""
   local lines = {
-    "# Forja.nvim",
+    "FORJA   /   APRENDIZAJE POR PRÁCTICA",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
-    "Ruta activa: " .. track.title .. "  ·  " .. done .. "/" .. total .. " lecciones demostradas",
-    state.exam_active and "Exam Mode: activo · asistencia Forja deshabilitada" or "",
+    "TU RUTA",
+    string.format("  %s   ·   %s", (track.language or ""):upper(), track.title),
+    string.format("  Progreso   %d de %d lecciones demostradas", done, total),
+    state.exam_active and "  Exam Mode activo · tutor y pistas pausados" or "",
     "",
-    lesson and ("Lección actual: " .. lesson.title) or "Ruta completada.",
-    lesson and ("Objetivo: " .. lesson.objective) or "",
+    "PRÓXIMO PASO",
+    lesson and ("  [s] Continuar   ·   " .. lesson.title) or "  Ruta completada · [l] elegir otra ruta",
+    lesson and ("  Objetivo   " .. lesson.objective) or "",
     "",
-    "Siguiente acción: " .. (lesson and "s · continuar · l · abrir lección · :ForjaRecall · recuperar" or "t · explorar rutas"),
+    "CAMBIAR LENGUAJE     [l] Elegir Rust, Python, Java o Go",
+    "TUTOR IA             [c] Configurar API key y proveedor",
     "",
-    "Repaso de memoria: :ForjaReview crea un workspace limpio; la programación espaciada está pendiente.",
-    "",
-    "Conceptos con intentos fallidos:",
+    "ACTIVIDAD",
   }
   local weak = {}
   for _, item in ipairs(ordered(track)) do
@@ -236,20 +245,25 @@ local function status_text(state, track, lesson)
       table.insert(weak, "- " .. item.title .. " · " .. concept_text(item.concepts))
     end
   end
-  if #weak == 0 then table.insert(lines, "- Todavía no hay evidencia de errores.") else vim.list_extend(lines, weak) end
-  vim.list_extend(lines, { "", "Resultados recientes:" })
-  local start = math.max(1, #state.history - 2)
-  for i = #state.history, start, -1 do
+  if #weak == 0 then table.insert(lines, "  Sin conceptos débiles detectados todavía.") else vim.list_extend(lines, weak) end
+  table.insert(lines, "  Resultados recientes")
+  local recent = {}
+  for i = #state.history, 1, -1 do
     local item = state.history[i]
-    local title = curriculum.lesson(track, item.lesson_id)
-    local label = item.passed and (item.variation and "transferencia aprobada" or "evaluación aprobada") or "sin aprobar"
-    table.insert(lines, "- " .. os.date("%Y-%m-%d %H:%M", item.at) .. " · " .. (title and title.title or item.lesson_id) .. " · " .. label)
+    if item.track_id == track.id then
+      local title = curriculum.lesson(track, item.lesson_id)
+      local label = item.passed and (item.variation and "transferencia aprobada" or "evaluación aprobada") or "sin aprobar"
+      table.insert(recent, "  " .. os.date("%d %b %H:%M", item.at) .. " · " .. (title and title.title or "Lección") .. " · " .. label)
+      if #recent == 3 then break end
+    end
   end
-  if #state.history == 0 then table.insert(lines, "- Sin intentos aún.") end
+  if #recent == 0 then table.insert(lines, "  Aún no hay evaluaciones en esta ruta.") else vim.list_extend(lines, recent) end
   vim.list_extend(lines, {
     "",
-    "Atajos: s continuar · t rutas · l lección · n siguiente · p progreso · a recordar · r repasar · q cerrar",
-    "Comandos: :ForjaRecall · :ForjaRun · :ForjaTest · :ForjaHint · :ForjaExam · :ForjaHealth",
+    "ATAJOS",
+    "  " .. (lesson and "s continuar" or "s cambiar ruta") .. "  ·" .. lesson_shortcut .. "  l cambiar lenguaje  ·  c ajustes",
+    "  " .. (lesson and "n siguiente  ·  " or "") .. "p progreso  ·  a recuperar  ·  r repasar  ·  q cerrar",
+    "COMANDOS   :ForjaRun  ·  :ForjaTest  ·  :ForjaHint  ·  :ForjaExam  ·  :ForjaHealth",
   })
   return lines
 end
@@ -260,32 +274,114 @@ function M.dashboard()
   local track = get_track(state)
   local lesson = track and (state.current_lesson and curriculum.lesson(track, state.current_lesson) or progress.first_incomplete(track, state)) or nil
   ui.dashboard(status_text(state, track, lesson), {
-    start = M.start,
+    start = track and lesson and M.start or M.lang,
     tracks = M.tracks,
-    lesson = M.lesson,
-    next = M.next,
-    progress = M.progress,
-    review = M.review,
-    recall = M.recall,
+    language = M.lang,
+    settings = M.settings,
+    lesson = track and lesson and M.lesson or nil,
+    next = track and lesson and M.next or nil,
+    progress = track and M.progress or nil,
+    review = track and M.review or nil,
+    recall = track and M.recall or nil,
   })
 end
 
-function M.tracks()
+local function track_entries(state, tracks)
+  local entries = {}
+  for _, track in ipairs(tracks) do
+    local track_progress = progress.track(state, track.id)
+    local completed = 0
+    for _, lesson in ipairs(track.lessons or {}) do
+      if track_progress.lessons[lesson.id] and track_progress.lessons[lesson.id].completed then completed = completed + 1 end
+    end
+    table.insert(entries, { track = track, progress = string.format("%d/%d", completed, #track.lessons) })
+  end
+  return entries
+end
+
+function M.lang()
   local state = load_state()
   if not state then return end
+  if state.exam_active then ui.notify("termina Exam Mode con :ForjaExam stop antes de cambiar de ruta", vim.log.levels.WARN); return end
   local tracks, err = curriculum.list()
   if not tracks then ui.notify(err, vim.log.levels.ERROR); return end
-  local lines = { "# Rutas disponibles", "" }
-  for index, track in ipairs(tracks) do
-    table.insert(lines, string.format("%d. %s · %d lecciones", index, track.title, #track.lessons))
-  end
-  table.insert(lines, "")
-  table.insert(lines, "Presiona un número para iniciar esa ruta; q cierra esta ventana.")
-  local buf = ui.open(lines, "Rutas de Forja")
-  for index, track in ipairs(tracks) do
-    local key = tostring(index)
-    vim.keymap.set("n", key, function() M.start(track.id) end, { buffer = buf, silent = true })
-  end
+  local order = { rust = 1, python = 2, java = 3, go = 4 }
+  table.sort(tracks, function(a, b) return (order[a.language] or 99) < (order[b.language] or 99) end)
+  local selected = 1
+  for index, track in ipairs(tracks) do if track.id == state.active_track then selected = index; break end end
+  ui.track_picker(track_entries(state, tracks), selected, function(track) M.start(track.id) end)
+end
+
+function M.tracks()
+  return M.lang()
+end
+
+function M.settings()
+  local state = load_state()
+  if not state then return end
+  local track = get_track(state)
+  local credential = require("forja.ai.credentials").status()
+  local key_status = credential.configured and ("  API key   Configurada · " .. credential.detail)
+    or ("  API key   No configurada · agrega una con [k]")
+  local delete_key_status = credential.source == "local" and "  [d] Borrar la key guardada localmente"
+    or credential.source == "environment" and "  La key viene del entorno; no hay una key local que borrar"
+    or "  No hay una key local guardada"
+  local provider = config.get().ai.provider
+  local provider_status = provider and ("  Tutor     " .. (provider.name or "Proveedor personalizado") .. " activo")
+    or "  Tutor     Modo offline · agrega una API key para activarlo"
+  local lines = {
+    "FORJA   /   AJUSTES",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
+    "LENGUAJE",
+    "  Ruta actual   " .. (track and (track.language:upper() .. " · " .. track.title) or "Sin elegir"),
+    "  [l] Cambiar lenguaje o ruta de aprendizaje",
+    "",
+    "TUTOR IA",
+    key_status,
+    provider_status,
+    "  [k] Agregar o reemplazar API key (entrada oculta)",
+    delete_key_status,
+    "",
+    "SEGURIDAD",
+    "  La key local no se cifra y se guarda fuera del progreso con permisos 0600.",
+    "  No se muestra al volver a este panel. Una key local tiene prioridad sobre el entorno.",
+    "  Las consultas a OpenAI pueden generar cargos; el tutor solo responde cuando lo invocas.",
+    "",
+    "  q cerrar   ·   Para revisar conexión/dependencias usa :ForjaHealth",
+  }
+  ui.settings(lines, {
+    language = M.lang,
+    set_key = function()
+      local ok, key = pcall(vim.fn.inputsecret, "OpenAI API key (no se mostrará): ")
+      if not ok then ui.notify("no se pudo abrir la entrada segura: " .. tostring(key), vim.log.levels.ERROR); return end
+      if type(key) ~= "string" or key == "" then ui.notify("no se guardó ninguna API key", vim.log.levels.INFO); return end
+      local saved, save_err = require("forja.ai.credentials").set(key)
+      if not saved then ui.notify(save_err, vim.log.levels.ERROR); return end
+      local current_provider = config.get().ai.provider
+      if not current_provider or current_provider.name == "OpenAI" then
+        config.get().ai.provider = require("forja.ai.providers.openai").new()
+        ui.notify("API key guardada localmente con permisos 0600; el tutor OpenAI está activo")
+      else
+        ui.notify("API key guardada localmente con permisos 0600; el proveedor personalizado sigue activo")
+      end
+      M.settings()
+    end,
+    delete_key = credential.source == "local" and function()
+      local removed, remove_err = require("forja.ai.credentials").delete()
+      if not removed then ui.notify(remove_err, vim.log.levels.ERROR); return end
+      local current_provider = config.get().ai.provider
+      if not current_provider or current_provider.name == "OpenAI" then
+        config.get().ai.provider = require("forja.ai.credentials").status().configured
+          and require("forja.ai.providers.openai").new() or nil
+      end
+      ui.notify(config.get().ai.provider and config.get().ai.provider.name ~= "OpenAI"
+        and "se borró la key local; el proveedor personalizado sigue activo"
+        or (config.get().ai.provider and "se borró la key local; Forja usará OPENAI_API_KEY del entorno"
+          or "se borró la API key local; el tutor vuelve al modo offline"))
+      M.settings()
+    end or nil,
+  })
 end
 
 function M.start(track_id)
@@ -293,14 +389,7 @@ function M.start(track_id)
   if not state then return end
   if state.exam_active then ui.notify("termina la evaluación con :ForjaExam stop antes de navegar", vim.log.levels.WARN); return end
   if not track_id and not state.active_track then
-    local tracks, err = curriculum.list()
-    if not tracks then ui.notify(err, vim.log.levels.ERROR); return end
-    vim.ui.select(tracks, {
-      prompt = "Elige una ruta de aprendizaje:",
-      format_item = function(track) return string.format("%s · %d lecciones", track.title, #track.lessons) end,
-    }, function(track)
-      if track then M.start(track.id) end
-    end)
+    M.lang()
     return
   end
   local track = get_track(state, track_id)
@@ -1005,7 +1094,11 @@ function M.setup()
     register("Forja", { desc = "Abrir el panel de aprendizaje" }, M.dashboard)
     register("ForjaClose", { desc = "Cerrar la vista de Forja y volver al código" }, M.close_view)
     register("ForjaResult", { desc = "Mostrar el resultado más reciente" }, ui.show_result)
-    register("ForjaStart", { nargs = "?", complete = function() return { "rust-foundations" } end, desc = "Iniciar o continuar una ruta" }, function(args) M.start(args.args ~= "" and args.args or nil) end)
+    register("ForjaStart", { nargs = "?", complete = function()
+      return vim.tbl_map(function(track) return track.id end, curriculum.list() or {})
+    end, desc = "Iniciar o continuar una ruta" }, function(args) M.start(args.args ~= "" and args.args or nil) end)
+    register("ForjaLang", { desc = "Elegir o cambiar lenguaje y ruta" }, M.lang)
+    register("ForjaSettings", { desc = "Configurar lenguaje y tutor IA" }, M.settings)
     register("ForjaTracks", { desc = "Explorar rutas de aprendizaje" }, M.tracks)
     register("ForjaLesson", { nargs = "?", desc = "Abrir la lección actual o una indicada" }, function(args) M.lesson(args.args ~= "" and args.args or nil) end)
     register("ForjaNext", { desc = "Abrir la siguiente lección disponible" }, M.next)

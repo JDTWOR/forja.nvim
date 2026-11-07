@@ -27,6 +27,8 @@
 - Add structured schemas for explanations, questions, hints and reviews.
 - Add selectable Professor, Socratic, Coach, Debugging, Code Review, Interviewer
   and Reflection behaviors. Exam Mode remains offline and refuses AI fallback.
+- The native `:ForjaLang` picker and `:ForjaSettings` panel provide readable
+  track selection and masked, permission-restricted local API-key setup.
 
 ## Phase 3 — adaptive learning
 

@@ -1,9 +1,12 @@
 vim.opt.runtimepath:prepend(vim.fn.getcwd())
 
+local original_key = vim.env.OPENAI_API_KEY
+vim.env.OPENAI_API_KEY = nil
+local temporary = vim.fn.tempname()
+require("forja.config").setup({ data_dir = temporary })
 local provider_module = require("forja.ai.providers.openai")
 local check = function(value, message) assert(value, message) end
 local original_system = vim.system
-local original_key = vim.env.OPENAI_API_KEY
 local api_key = "sk-forja-test-secret"
 vim.env.OPENAI_API_KEY = api_key
 
@@ -104,5 +107,6 @@ check(timeout_killed and timeout_callback.error:find("timeout", 1, true), "OpenA
 
 vim.system = original_system
 vim.env.OPENAI_API_KEY = original_key
+require("forja.util.fs").remove_tree(temporary)
 print("OpenAI provider tests passed: request transport, response parsing, errors, usage, key handling, timeout and cancellation")
 vim.cmd("qa!")

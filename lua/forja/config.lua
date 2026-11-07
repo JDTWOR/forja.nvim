@@ -9,8 +9,11 @@ M.defaults = {
 
 function M.setup(opts)
   opts = opts or {}
-  M.options = vim.tbl_deep_extend("force", M.defaults, opts)
+  M.options = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts)
   M.options.data_dir = M.options.data_dir or (vim.fn.stdpath("data") .. "/forja")
+  if M.options.ai.provider == nil and require("forja.ai.credentials").status().configured then
+    M.options.ai.provider = require("forja.ai.providers.openai").new()
+  end
   return M.options
 end
 

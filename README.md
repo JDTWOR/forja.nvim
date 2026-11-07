@@ -22,10 +22,10 @@ Test output remains in a bottom pane that updates on later runs and can be
 closed with `q`. On a fresh install the dashboard asks which track to start
 instead of choosing one implicitly.
 
-The OpenAI Responses API provider is available as an opt-in; without it, the
-tutor uses a fixed offline Socratic question. A spaced-repetition scheduler is
-not shipped yet; `:ForjaReview` creates a clean workspace for explicit recall
-practice. See [the roadmap](docs/roadmap.md) for the next phases and
+The OpenAI Responses API provider is optional; when no key is configured, the
+tutor uses a fixed offline Socratic question. Set up the provider directly in
+Neovim with `:ForjaSettings`. A spaced-repetition scheduler is not shipped yet;
+`:ForjaReview` creates a clean workspace for explicit recall practice. See [the roadmap](docs/roadmap.md) for the next phases and
 [research notes](docs/research.md) for upstream review and licensing decisions.
 
 ## Requirements
@@ -61,7 +61,7 @@ return {
     "JDTWOR/forja.nvim",
     main = "forja",
     cmd = {
-      "Forja", "ForjaClose", "ForjaResult", "ForjaStart", "ForjaTracks", "ForjaLesson", "ForjaNext",
+      "Forja", "ForjaClose", "ForjaResult", "ForjaStart", "ForjaLang", "ForjaSettings", "ForjaTracks", "ForjaLesson", "ForjaNext",
       "ForjaRun", "ForjaTest", "ForjaTrustLocal", "ForjaCancel", "ForjaHint",
       "ForjaTutor", "ForjaRecall", "ForjaHistory", "ForjaReview", "ForjaPractice", "ForjaExam", "ForjaAbandon",
       "ForjaProgress", "ForjaHealth", "ForjaExport",
@@ -87,9 +87,11 @@ opts = { keymaps = { enabled = true, prefix = "<leader>F" } }
 
 ## First lesson walkthrough
 
-1. Run `:Forja` and press `s` to choose a track, or start one directly:
+1. Run `:Forja` and press `l` to choose a language, or start one directly:
    `:ForjaStart rust-foundations`, `:ForjaStart python-foundations`,
    `:ForjaStart java-foundations`, or `:ForjaStart go-foundations`.
+   Later, use `:ForjaLang` or dashboard key `l` to switch tracks. Each track
+   keeps its own progress and workspace.
 2. Read the challenge beside the opened source buffer on wide terminals. Press
    `1`–`5` in the lesson pane to switch between the challenge, concept, example,
    recall and strategy. On narrow terminals, the focused lesson view has
@@ -141,7 +143,9 @@ Exam Mode only controls features inside Forja.
 | `:ForjaClose` | Close the lesson or focused Forja view and return to code. |
 | `:ForjaResult` | Open the latest test output without replacing the lesson. |
 | `:ForjaStart [track-id]` | Start/resume the first eligible lesson in a track. |
-| `:ForjaTracks` | Browse installed tracks. |
+| `:ForjaLang` | Open the keyboard language/track picker. |
+| `:ForjaSettings` | Open language and AI settings; add a masked API key with `k`. |
+| `:ForjaTracks` | Open the language/track picker. |
 | `:ForjaLesson [lesson-id]` | Open the current or a prerequisite-eligible lesson. |
 | `:ForjaNext` | Open the next lesson after assessment completion. |
 | `:ForjaRun` | Run visible tests with the selected language toolchain asynchronously. |
@@ -163,15 +167,17 @@ Exam Mode only controls features inside Forja.
 ## OpenAI tutor configuration
 
 Forja includes an optional adapter for OpenAI's [Responses API](https://developers.openai.com/api/docs/guides/text).
-It is off by default; without configuration, `:ForjaTutor` uses the offline
-mock. The adapter requires `curl` and reads the API key from `OPENAI_API_KEY`
-when you ask the tutor. It sends the tutor instructions and lesson context, but
-does not send workspace files or source buffers. Responses use `store = false`.
+Without a key, `:ForjaTutor` uses the offline mock. Run `:ForjaSettings`, press
+`k`, then paste the key at the masked prompt. Forja saves it outside progress
+data at `stdpath("data")/forja/secrets/openai.key` with `0600` file permissions,
+enables OpenAI immediately, and never displays the saved value. The local key
+takes priority over the environment; `d` removes the saved key and falls back
+to `OPENAI_API_KEY` if present. The adapter requires `curl`.
 
 Create an API key in the [OpenAI API platform](https://platform.openai.com/api-keys)
-and make it available in the environment of the Neovim process. In Zsh, for a
-single terminal session, you can enter it without echoing it or putting it in
-shell history:
+If you prefer not to save a local key, provide `OPENAI_API_KEY` in Neovim's
+environment. For a single Zsh terminal session, enter it without echoing it or
+putting it in shell history:
 
 ```zsh
 read -rs 'OPENAI_API_KEY?OpenAI API key: '
@@ -179,27 +185,11 @@ export OPENAI_API_KEY
 nvim
 ```
 
-Then change the existing LazyVim spec's `opts` field to a function that adds
-the provider while preserving your other options:
-
-```lua
-opts = function(_, opts)
-  opts.ai = opts.ai or {}
-  opts.ai.provider = require("forja.ai.providers.openai").new({
-    -- Optional. Defaults to gpt-6-luna; can also use FORJA_OPENAI_MODEL.
-    -- model = "gpt-6-luna",
-    timeout_ms = 45000,
-    max_output_tokens = 800,
-  })
-  return opts
-end,
-```
-
-Restart Neovim, open a lesson, then run `:ForjaTutor`. Use `:ForjaHealth` to
-check `curl`, the key's presence, the selected model, and this session's token
-totals. `:ForjaCancel` cancels a pending tutor request or a running exercise.
-The model can be changed with the `model` option or the `FORJA_OPENAI_MODEL`
-environment variable. A model response is guidance, not a test result.
+Open a lesson and run `:ForjaTutor`. Use `:ForjaHealth` to check `curl`, the
+key's presence, the selected model, and this session's token totals.
+`:ForjaCancel` cancels a pending tutor request or a running exercise. The model
+defaults to `gpt-6-luna`; set `FORJA_OPENAI_MODEL` or configure `opts.ai.provider`
+if you need another model. A model response is guidance, not a test result.
 OpenAI API usage is billed separately from a ChatGPT subscription; see the
 [OpenAI billing explanation](https://help.openai.com/en/articles/9039756-managing-billing-for-chatgpt-and-the-api-platform).
 
@@ -217,7 +207,10 @@ small interface:
 ```
 
 The context intentionally excludes learner files and source buffers. Keep API
-keys out of Forja progress data, source files, and public Git repositories.
+keys out of Forja progress data, source files, and public Git repositories. A
+locally saved key is unencrypted and readable by the same OS user (and root);
+the `0600` permissions prevent access by other ordinary users. Use the
+environment-variable option when you prefer to manage the key elsewhere.
 Provider output is tutoring advice, not a test result. Exam Mode does not call
 the provider and never falls back to one.
 
@@ -270,10 +263,11 @@ The suite uses no Plenary or other Neovim test dependency. It covers graph
 validation, migrations, persistence, sticky assistance accounting, clean
 retrieval and exam gating, saved history and session restoration, restricted
 recall/review views, tabbed lessons, first-run track selection, persistent test
-results, responsive UI cleanup and resize, assessment gating, unsaved-buffer
-safety, separate transfer workspaces, mandatory hidden assessments, workspace
-staging limits, process-group cancellation, OpenAI protocol parsing, missing-key
-handling, token usage, timeout and cancellation. It checks that ten Rust starters
+results, responsive UI cleanup and resize, language-picker navigation, secure
+masked API-key setup/removal, assessment gating, unsaved-buffer safety, separate
+transfer workspaces, mandatory hidden assessments, workspace staging limits,
+process-group cancellation, OpenAI protocol parsing, missing-key handling, token
+usage, timeout and cancellation. It checks that ten Rust starters
 compile without warnings and verifies all twenty foundation exercises and all
 twenty transfer variations against visible and hidden tests.
 

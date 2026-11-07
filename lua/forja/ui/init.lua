@@ -23,8 +23,9 @@ local function set_reading_options(win)
   vim.wo[win].foldcolumn = "0"
 end
 
-local function float_config(title)
+local function float_config(title, requested_height)
   local width, height, columns, lines = layout()
+  if requested_height then height = clamp(requested_height, 1, math.max(1, lines - 4)) end
   local border = columns >= 8 and lines >= 6 and "rounded" or "none"
   local config = {
     relative = "editor", width = width, height = height,
@@ -172,7 +173,7 @@ function M.open(lines, title, opts)
   remove_view("float", false)
   local return_win = vim.api.nvim_get_current_win()
   local buf = make_buffer(lines)
-  local win = vim.api.nvim_open_win(buf, opts.focus ~= false, float_config(title))
+  local win = vim.api.nvim_open_win(buf, opts.focus ~= false, float_config(title, opts.fit and #lines or opts.height))
   set_reading_options(win)
   local view = { buf = buf, win = win, kind = "float", return_win = opts.return_win or return_win }
   M.views.float, M.current = view, view
@@ -315,21 +316,121 @@ function M.lines(title, lines)
 end
 
 function M.dashboard(lines, actions)
-  local buf = M.open(lines, "Forja · aprendizaje")
-  local mappings = {
-    ["s"] = { actions.start, "Continuar aprendizaje" },
-    ["t"] = { actions.tracks, "Explorar rutas" },
-    ["l"] = { actions.lesson, "Abrir lección" },
-    ["n"] = { actions.next, "Siguiente lección" },
-    ["p"] = { actions.progress, "Ver progreso" },
-    ["r"] = { actions.review, "Repasar" },
-    ["a"] = { actions.recall, "Recuperación activa" },
-  }
+  local buf, win = M.open(lines, "FORJA · APRENDIZAJE", { fit = true })
+  vim.wo[win].winbar = "  FORJA   ·   [s] empezar/continuar   [e] lección   [l] lenguaje   [c] tutor IA   [q] cerrar"
+  local ns = vim.api.nvim_create_namespace("forja-dashboard")
+  for index, line in ipairs(lines) do
+    local group = line:match("^FORJA") and "Title"
+      or line:match("^━") and "Comment"
+      or line:match("^PRÓXIMO PASO") and "DiagnosticInfo"
+      or line:match("^TU RUTA") and "Special"
+      or line:match("^CAMBIAR LENGUAJE") and "DiagnosticInfo"
+      or line:match("^TUTOR IA") and "Special"
+      or line:match("^RECORRIDO") and "Special"
+      or line:match("^ACTIVIDAD") and "Special"
+      or line:match("^%s*%[[slc]%]") and "DiagnosticInfo"
+    if group then pcall(vim.api.nvim_buf_add_highlight, buf, ns, group, index - 1, 0, -1) end
+  end
+  local mappings = {}
+  local function add(key, action, description)
+    if type(action) == "function" then mappings[key] = { action, description } end
+  end
+  add("s", actions.start, "Empezar o continuar")
+  add("l", actions.language or actions.tracks, "Cambiar lenguaje o ruta")
+  add("c", actions.settings, "Configurar el tutor IA")
+  add("n", actions.next, "Siguiente lección")
+  add("p", actions.progress, "Ver progreso")
+  add("r", actions.review, "Repasar")
+  add("a", actions.recall, "Recuperación activa")
+  if actions.lesson then mappings["e"] = { actions.lesson, "Abrir lección actual" } end
   for key, mapping in pairs(mappings) do
     vim.keymap.set("n", key, mapping[1], { buffer = buf, silent = true, desc = mapping[2] })
   end
   install_lifecycle()
   return buf
+end
+
+function M.track_picker(entries, selected, on_select)
+  local lines = {
+    "ELIGE TU LENGUAJE",
+    "Cambia de ruta cuando quieras; cada curso conserva su propio progreso.",
+    "",
+  }
+  local selectable_rows = {}
+  for index, entry in ipairs(entries) do
+    local track = entry.track
+    local language = tostring(track.language or ""):upper()
+    local progress = entry.progress or "0/" .. tostring(#(track.lessons or {}))
+    local title = track.title or language
+    local row = string.format("  %d   %-10s  %-39s  %s", index, language, title, progress)
+    selectable_rows[index] = #lines + 1
+    table.insert(lines, row)
+    local description = tostring(track.description or ""):gsub("%s+", " ")
+    if vim.fn.strdisplaywidth(description) > 75 then description = vim.fn.strcharpart(description, 0, 72) .. "..." end
+    table.insert(lines, "      " .. description)
+    table.insert(lines, "")
+  end
+  table.insert(lines, "J/K mover  ·  Enter abrir  ·  1–" .. tostring(#entries) .. " elegir  ·  q volver")
+  local buf, win = M.open(lines, "FORJA · CAMBIAR LENGUAJE", { fit = true })
+  vim.wo[win].cursorline = true
+  vim.wo[win].cursorlineopt = "line"
+  local ns = vim.api.nvim_create_namespace("forja-track-picker")
+  for index, row in ipairs(selectable_rows) do
+    vim.api.nvim_buf_add_highlight(buf, ns, "Identifier", row - 1, 0, -1)
+    vim.api.nvim_buf_add_highlight(buf, ns, "Comment", row, 0, -1)
+  end
+  for index, line in ipairs(lines) do
+    if index == 1 then vim.api.nvim_buf_add_highlight(buf, ns, "Title", index - 1, 0, -1) end
+  end
+  local current = math.max(1, math.min(selected or 1, #entries))
+  local function move(delta)
+    if #entries == 0 then return end
+    current = ((current - 1 + delta) % #entries) + 1
+    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_set_cursor(win, { selectable_rows[current], 0 }) end
+  end
+  local function choose(index)
+    local entry = entries[index]
+    if not entry then return end
+    remove_view("float", true)
+    on_select(entry.track)
+  end
+  if #entries > 0 then vim.api.nvim_win_set_cursor(win, { selectable_rows[current], 0 }) end
+  vim.keymap.set("n", "j", function() move(1) end, { buffer = buf, silent = true, desc = "Siguiente lenguaje" })
+  vim.keymap.set("n", "k", function() move(-1) end, { buffer = buf, silent = true, desc = "Lenguaje anterior" })
+  vim.keymap.set("n", "<Down>", function() move(1) end, { buffer = buf, silent = true })
+  vim.keymap.set("n", "<Up>", function() move(-1) end, { buffer = buf, silent = true })
+  vim.keymap.set("n", "<CR>", function() choose(current) end, { buffer = buf, silent = true, desc = "Abrir ruta" })
+  for index = 1, math.min(9, #entries) do
+    vim.keymap.set("n", tostring(index), function() choose(index) end,
+      { buffer = buf, silent = true, desc = "Elegir " .. entries[index].track.title })
+  end
+  return buf, win
+end
+
+function M.settings(lines, actions)
+  local buf, win = M.open(lines, "FORJA · AJUSTES", { fit = true })
+  vim.wo[win].winbar = "  FORJA   ·   [l] lenguaje   [k] API key"
+    .. (actions.delete_key and "   [d] borrar key local" or "") .. "   [q] cerrar"
+  local ns = vim.api.nvim_create_namespace("forja-settings")
+  for index, line in ipairs(lines) do
+    local group = line:match("^FORJA") and "Title"
+      or line:match("^━") and "Comment"
+      or line:match("^LENGUAJE") and "Special"
+      or line:match("^TUTOR IA") and "Special"
+      or line:match("^SEGURIDAD") and "DiagnosticWarn"
+      or line:match("^%s*%[[lkd]%]") and "DiagnosticInfo"
+    if group then pcall(vim.api.nvim_buf_add_highlight, buf, ns, group, index - 1, 0, -1) end
+  end
+  local mappings = {
+    ["l"] = { actions.language, "Cambiar lenguaje" },
+    ["k"] = { actions.set_key, "Guardar API key de forma local" },
+    ["d"] = { actions.delete_key, "Borrar API key local" },
+  }
+  for key, mapping in pairs(mappings) do
+    if mapping[1] then vim.keymap.set("n", key, mapping[1], { buffer = buf, silent = true, desc = mapping[2] }) end
+  end
+  install_lifecycle()
+  return buf, win
 end
 
 return M

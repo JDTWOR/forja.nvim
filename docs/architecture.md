@@ -88,9 +88,16 @@ concept tags, assistance level, attempt count, mode and learner question; it doe
 not collect repository files. The built-in mock gives one fixed Socratic question
 and is not an AI model. `ai/prompts.lua` contains the educational system prompt.
 The opt-in `ai/providers/openai.lua` adapter calls the Responses API asynchronously
-through `curl`, reads its key from an environment variable, sends no files, sets
+through `curl`, resolves its key through `ai/credentials.lua`, sends no files, sets
 `store = false`, and supports timeout, cancellation, and session token accounting.
-The mock remains the default, so Forja still works offline without an API key.
+The mock remains the default when no key is available. `ai/credentials.lua`
+supports a local key file outside progress data with `0600` permissions; the
+Neovim settings panel masks key entry, and the environment remains available as
+a fallback. The file is plaintext for the current OS user and is not encrypted.
+
+`:ForjaLang` opens a native keyboard picker showing friendly course names and
+per-track completion, without exposing curriculum IDs. `:ForjaSettings` groups
+language switching, tutor status, masked key entry and local key removal.
 
 ## Lazy.nvim
 

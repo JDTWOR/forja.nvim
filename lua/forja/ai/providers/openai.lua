@@ -1,4 +1,5 @@
 local M = {}
+local credentials = require("forja.ai.credentials")
 
 local endpoint = "https://api.openai.com/v1/responses"
 local default_model = "gpt-6-luna"
@@ -78,11 +79,11 @@ function M.new(opts)
   provider.name = "OpenAI"
 
   function provider.health()
-    local key_present = type(vim.env[api_key_env]) == "string" and vim.env[api_key_env] ~= ""
+    local credential = credentials.status(api_key_env)
     local curl_present = vim.fn.executable("curl") == 1
     local model_present = type(model) == "string" and model ~= ""
     local problems = {}
-    if not key_present then table.insert(problems, "falta la variable " .. api_key_env) end
+    if not credential.configured then table.insert(problems, credential.detail) end
     if not curl_present then table.insert(problems, "falta curl") end
     if not model_present then table.insert(problems, "falta el modelo") end
     return #problems == 0, #problems == 0 and ("modelo " .. model) or table.concat(problems, ", ")
@@ -93,9 +94,9 @@ function M.new(opts)
   end
 
   function provider.complete(request, callback)
-    local api_key = vim.env[api_key_env]
+    local api_key, _, credential_error = credentials.resolve(api_key_env)
     if type(api_key) ~= "string" or api_key == "" then
-      callback({ error = "No se encontró " .. api_key_env .. ". Configura la variable de entorno y reinicia Neovim." })
+      callback({ error = credential_error or ("No se encontró " .. api_key_env .. ". Configúrala desde :ForjaSettings o en el entorno.") })
       return nil
     end
     if vim.fn.executable("curl") ~= 1 then

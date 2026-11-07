@@ -1,6 +1,6 @@
 # Forja usability audit and remediation record
 
-Date: 2026-11-05
+Date: 2026-11-07
 
 ## Scope
 
@@ -38,8 +38,11 @@ confirmed the navigation, execution, and learning-cycle gaps listed below.
 | U22 | P1 | Timeout covered each Cargo stage separately, cancellation could leave child tests alive, and large workspace staging could freeze Neovim. | One deadline spans compile and test; cancellation/timeouts kill the detached process group on Linux/macOS; synchronous staging rejects workspaces over 2000 entries or 16 MiB. | Runner regressions check child termination, one total deadline, and rejection beyond staging limits. Staging remains synchronous within those bounds. |
 | U23 | P2 | Invalid base starter manifests were accepted until the learner attempted execution. | Curriculum loading validates base and transfer Cargo package names and requires a starter source file. | Regression checks reject package mismatches and missing source files before a track is offered. |
 | U24 | P1 | Tutor input could be submitted before Exam Mode and still invoke a provider after the exam began. | The async input callback checks current Exam Mode immediately before contacting a provider. | UX regression holds the input callback, starts an exam, then verifies the configured provider is never called. |
-| U25 | P1 | A fresh installation silently chose the alphabetically first course, so the dashboard could display an unrelated language and progress state. | With no active course, the dashboard offers a route picker when the learner starts. | Headless test verifies an empty dashboard has no course and `s` asks for a selection before opening a lesson. |
+| U25 | P1 | A fresh installation silently chose the alphabetically first course, so the dashboard could display an unrelated language and progress state. | With no active course, the dashboard offers a keyboard language picker; `:ForjaLang` reopens it at any time. | Headless test verifies the picker presents friendly course names and starts the selected route. |
 | U26 | P1 | A lesson presented its explanation, example, questions, strategy and exercise in one long pane. | The reading pane now has numbered sections for challenge, concept, example, recall and strategy; switching sections keeps the same source buffer open. | UI tests navigate the tabs for all four course languages and verify the displayed example fence. |
+| U27 | P1 | Changing tracks required internal IDs or an unstyled `vim.ui.select`; the dashboard did not expose a clear language switch. | `:ForjaLang`, dashboard `l`, and first-run start use a native picker with language names, completion counts, `j`/`k`, arrows, Enter, and number shortcuts. | Headless UX test selects Python by number and verifies the selected track and workspace. |
+| U28 | P1 | The dashboard was plain Markdown text in a fixed-height window, leaving large empty areas and weak visual hierarchy. | Rebuild the dashboard as a compact native panel with highlighted section headings, a clear next action, language/AI setup shortcuts, recent activity, a fitted height, and a local shortcut bar. | Headless tests verify action mappings, picker/settings navigation, buffer cleanup, and responsive bounds. |
+| U29 | P1 | Configuring an API key required editing shell state and Lazy configuration; there was no visible settings area or masked input. | `:ForjaSettings` groups language and tutor controls. `k` uses Neovim's hidden secret prompt and stores the key outside progress in a file with `0600` permissions; `d` removes it. | Settings tests verify the key is absent from the UI/progress, permissions are restricted, the provider activates, and removal returns to offline mode. |
 
 ## Interaction contract now implemented
 
@@ -60,6 +63,8 @@ confirmed the navigation, execution, and learning-cycle gaps listed below.
   does not claim to control applications or tools outside the plugin.
 - `:ForjaHistory` reopens saved recall answers and practice copies; reopening an
   old copy never counts as fresh independent evidence.
+- `:ForjaLang` opens the language/track picker. `:ForjaSettings` configures the
+  tutor without exposing the API key in the panel.
 
 ## Verification and remaining check
 
